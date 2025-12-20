@@ -150,6 +150,23 @@ body{
 
 .showcase-item[hidden]{ display:none !important; }
 
+.about-image-wrap{
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  border-radius: 22px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+}
+
+.about-image{
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
 .footer{
   background: #0b0c0f;
   color: rgba(255,255,255,0.88);
