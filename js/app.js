@@ -31,13 +31,77 @@
   const defaultBtn = document.querySelector('[data-filter="all"]');
   if (defaultBtn) defaultBtn.classList.add("active");
 
+  // Showcase image lightbox
+  const showcaseCards = document.querySelectorAll(".showcase-card");
+  const lightbox = document.getElementById("imageLightbox");
+  const lightboxImg = document.getElementById("imageLightboxImg");
+  const lightboxCaption = document.getElementById("imageLightboxCaption");
+  const lightboxClose = document.getElementById("imageLightboxClose");
+
+  function openLightbox(card) {
+    if (!lightbox || !lightboxImg) return;
+
+    const img = card.querySelector("img");
+    const title = card.querySelector(".fw-semibold")?.textContent?.trim() || img?.alt || "Cookie image";
+
+    if (!img) return;
+
+    lightboxImg.src = img.src;
+    lightboxImg.alt = img.alt || title;
+    if (lightboxCaption) lightboxCaption.textContent = title;
+
+    lightbox.classList.add("is-open");
+    lightbox.setAttribute("aria-hidden", "false");
+    document.body.classList.add("lightbox-open");
+    lightboxClose?.focus();
+  }
+
+  function closeLightbox() {
+    if (!lightbox || !lightboxImg) return;
+
+    lightbox.classList.remove("is-open");
+    lightbox.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("lightbox-open");
+
+    lightboxImg.src = "";
+    lightboxImg.alt = "";
+    if (lightboxCaption) lightboxCaption.textContent = "";
+  }
+
+  showcaseCards.forEach(card => {
+    card.setAttribute("tabindex", "0");
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-label", "Open enlarged cookie image");
+
+    card.addEventListener("click", () => openLightbox(card));
+
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openLightbox(card);
+      }
+    });
+  });
+
+  lightboxClose?.addEventListener("click", closeLightbox);
+
+  lightbox?.addEventListener("click", (e) => {
+    if (e.target === lightbox) closeLightbox();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && lightbox?.classList.contains("is-open")) {
+      closeLightbox();
+    }
+  });
+
   // Request form
   const form = document.getElementById("cookieRequestForm");
   const statusEl = document.getElementById("formStatus");
   const submitBtn = document.getElementById("submitBtn");
   const mailtoBtn = document.getElementById("mailtoBtn");
 
-  const destinationEmail = "haleigh.zaccaria@gmail.com";
+  const destinationEmail = "leeannscookiesnj@gmail.com";
 
   // ===== EmailJS CONFIG =====
   // 1) EmailJS dashboard -> Email Services -> copy your Service ID

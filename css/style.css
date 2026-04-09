@@ -191,6 +191,128 @@ body{
   border-color: rgba(0,0,0,0.35);
 }
 
+/* Clickable showcase cards */
+.showcase-card{
+  cursor: pointer;
+}
+
+.showcase-card:focus-visible{
+  outline: 3px solid rgba(0,0,0,0.25);
+  outline-offset: 4px;
+}
+
+/* Image lightbox */
+.image-lightbox{
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0,0,0,0.82);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .2s ease, visibility .2s ease;
+}
+
+.image-lightbox.is-open{
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.image-lightbox-dialog{
+  position: relative;
+  width: min(95vw, 1200px);
+  height: min(90vh, 900px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-lightbox-image{
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 20px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.35);
+  background: #fff;
+}
+
+.image-lightbox-close{
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #111;
+  font-size: 1.5rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  cursor: pointer;
+}
+
+.image-lightbox-close:hover{
+  transform: scale(1.04);
+}
+
+.image-lightbox-caption{
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: .95rem;
+  text-align: center;
+  width: auto;
+  max-width: calc(100% - 32px);
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: #2f2f33;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.28);
+  white-space: nowrap;
+}
+
+body.lightbox-open{
+  overflow: hidden;
+}
+
+@media (max-width: 576px){
+  .image-lightbox{
+    padding: 16px;
+  }
+
+  .image-lightbox-dialog{
+    width: 100%;
+    height: min(84vh, 700px);
+  }
+
+  .image-lightbox-close{
+    top: -6px;
+    right: -2px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .image-lightbox-caption{
+    bottom: 16px;
+    font-size: .85rem;
+    padding: 9px 16px;
+    max-width: calc(100% - 24px);
+    white-space: normal;
+  }
+}
+
 /* Mobile tweaks */
 @media (max-width: 576px){
   .section{ padding: 56px 0; }
