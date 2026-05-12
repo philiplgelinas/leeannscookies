@@ -107,9 +107,9 @@
   // 1) EmailJS dashboard -> Email Services -> copy your Service ID
   // 2) EmailJS dashboard -> Email Templates -> create/copy Template ID
   // 3) EmailJS dashboard -> Account -> copy Public Key
-  const EMAILJS_PUBLIC_KEY = "PASTE_YOUR_PUBLIC_KEY_HERE";
-  const EMAILJS_SERVICE_ID = "PASTE_YOUR_SERVICE_ID_HERE";
-  const EMAILJS_TEMPLATE_ID = "PASTE_YOUR_TEMPLATE_ID_HERE";
+  const EMAILJS_PUBLIC_KEY = "1CIxr9NPrrsN0AYgO";
+  const EMAILJS_SERVICE_ID = "service_x6u1c8k";
+  const EMAILJS_TEMPLATE_ID = "template_en8radw";
 
   function setStatus(msg, isError = false) {
     if (!statusEl) return;
