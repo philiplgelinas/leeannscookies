@@ -313,6 +313,75 @@ body.lightbox-open{
   }
 }
 
+
+/* Request form attachment preview */
+.attachment-list{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.attachment-pill{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.08);
+  font-size: .9rem;
+}
+
+.attachment-pill i{
+  opacity: .75;
+}
+
+.attachment-name{
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-size{
+  color: var(--muted-dark);
+  font-size: .8rem;
+}
+
+.attachment-remove{
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0;
+  background: rgba(0,0,0,0.1);
+  color: #111;
+  font-size: 0;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.attachment-remove::before{
+  content: "×";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.attachment-remove:hover,
+.attachment-remove:focus-visible{
+  background: rgba(0,0,0,0.18);
+}
+
 /* Mobile tweaks */
 @media (max-width: 576px){
   .section{ padding: 56px 0; }

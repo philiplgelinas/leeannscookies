@@ -406,7 +406,7 @@
       <div class="col-12 col-lg-7">
         <div class="card clean-card">
           <div class="card-body p-4 p-md-5">
-            <form id="cookieRequestForm" novalidate>
+            <form id="cookieRequestForm" enctype="multipart/form-data" method="post" novalidate>
               <div class="row g-3">
                 <div class="col-12 col-md-6">
                   <label class="form-label" for="name">Name</label>
@@ -441,6 +441,15 @@
                 <div class="col-12">
                   <label class="form-label" for="inspo">Inspiration link (optional)</label>
                   <input class="form-control form-control-lg" id="inspo" name="inspo" type="url" placeholder="Pinterest / Instagram / website link" />
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label" for="orderImages">Inspiration images (optional)</label>
+                  <input class="form-control form-control-lg" id="orderImages" name="orderImages" type="file"
+                         accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple />
+                  <div class="form-text">Upload up to 3 images. JPG, PNG, WEBP, HEIC, or HEIF. Website send supports very small images only; larger images can be listed with the mail app button and attached manually.</div>
+                  <div class="invalid-feedback" id="orderImagesFeedback">Please upload up to 3 image files.</div>
+                  <div class="attachment-list mt-2" id="attachmentList" aria-live="polite"></div>
                 </div>
 
                 <div class="col-12">

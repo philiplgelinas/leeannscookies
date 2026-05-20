@@ -100,8 +100,19 @@
   const statusEl = document.getElementById("formStatus");
   const submitBtn = document.getElementById("submitBtn");
   const mailtoBtn = document.getElementById("mailtoBtn");
+  const orderImagesInput = document.getElementById("orderImages");
+  const attachmentList = document.getElementById("attachmentList");
+  const orderImagesFeedback = document.getElementById("orderImagesFeedback");
 
   const destinationEmail = "leeannscookiesnj@gmail.com";
+  const maxImageCount = 3;
+  const maxImageSizeBytes = 5 * 1024 * 1024;
+  // EmailJS Free allows requests up to 50 KB total. Keep this lower to leave room for form text/overhead.
+  // If the EmailJS account is upgraded, raise this value to match the paid plan attachment limit.
+  const maxEmailJSTotalAttachmentBytes = 45 * 1024;
+  const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+  const allowedImageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
+  let selectedImageFiles = [];
 
   // ===== EmailJS CONFIG =====
   // 1) EmailJS dashboard -> Email Services -> copy your Service ID
@@ -118,7 +129,115 @@
     statusEl.classList.toggle("text-success", !isError);
   }
 
-  function buildMailto(formData) {
+  function getSelectedImageFiles() {
+    return selectedImageFiles;
+  }
+
+  function syncImageInputFiles() {
+    if (!orderImagesInput) return;
+
+    const dataTransfer = new DataTransfer();
+    selectedImageFiles.forEach(file => dataTransfer.items.add(file));
+    orderImagesInput.files = dataTransfer.files;
+  }
+
+  function removeImageAttachment(indexToRemove) {
+    selectedImageFiles = selectedImageFiles.filter((_, index) => index !== indexToRemove);
+    syncImageInputFiles();
+    validateImageAttachments({ enforceEmailJSLimit: false });
+    renderAttachmentList();
+  }
+
+  function formatBytes(bytes) {
+    if (!Number.isFinite(bytes)) return "";
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function isAllowedImageFile(file) {
+    const fileName = file.name.toLowerCase();
+    const hasAllowedType = allowedImageTypes.includes(file.type);
+    const hasAllowedExtension = allowedImageExtensions.some(ext => fileName.endsWith(ext));
+    return hasAllowedType || hasAllowedExtension;
+  }
+
+  function setImageAttachmentValidity(message = "") {
+    if (!orderImagesInput) return;
+    orderImagesInput.setCustomValidity(message);
+    if (orderImagesFeedback && message) orderImagesFeedback.textContent = message;
+  }
+
+  function validateImageAttachments({ enforceEmailJSLimit = false } = {}) {
+    const files = getSelectedImageFiles();
+    setImageAttachmentValidity("");
+
+    if (files.length > maxImageCount) {
+      setImageAttachmentValidity(`Please upload no more than ${maxImageCount} images.`);
+      return false;
+    }
+
+    const invalidType = files.find(file => !isAllowedImageFile(file));
+    if (invalidType) {
+      setImageAttachmentValidity("Please upload images only: JPG, PNG, WEBP, HEIC, or HEIF.");
+      return false;
+    }
+
+    const oversized = files.find(file => file.size > maxImageSizeBytes);
+    if (oversized) {
+      setImageAttachmentValidity(`${oversized.name} is too large. Each image must be 5 MB or smaller.`);
+      return false;
+    }
+
+    if (enforceEmailJSLimit) {
+      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+      if (totalSize > maxEmailJSTotalAttachmentBytes) {
+        setImageAttachmentValidity(
+          `Selected images total ${formatBytes(totalSize)}, which is above the website upload limit of ${formatBytes(maxEmailJSTotalAttachmentBytes)}. Please remove/compress images, or use the mail app button and attach them manually.`
+        );
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function renderAttachmentList() {
+    if (!attachmentList) return;
+
+    attachmentList.innerHTML = "";
+    const files = getSelectedImageFiles();
+    if (!files.length) return;
+
+    files.forEach((file, index) => {
+      const pill = document.createElement("div");
+      pill.className = "attachment-pill";
+
+      const icon = document.createElement("i");
+      icon.className = "bi bi-image";
+      icon.setAttribute("aria-hidden", "true");
+
+      const name = document.createElement("span");
+      name.className = "attachment-name";
+      name.textContent = file.name;
+      name.title = file.name;
+
+      const size = document.createElement("span");
+      size.className = "attachment-size";
+      size.textContent = formatBytes(file.size);
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "attachment-remove";
+      removeBtn.setAttribute("aria-label", `Remove ${file.name}`);
+      removeBtn.innerHTML = "&times;";
+      removeBtn.addEventListener("click", () => removeImageAttachment(index));
+
+      pill.append(icon, name, size, removeBtn);
+      attachmentList.appendChild(pill);
+    });
+  }
+
+  function buildMailto(formData, fileNames = []) {
     const subject = `Cookie Request - ${formData.name} (${formData.eventDate})`;
     const bodyLines = [
       `Name: ${formData.name}`,
@@ -127,6 +246,7 @@
       `Quantity: ${formData.quantity}`,
       `Theme/Occasion: ${formData.theme}`,
       `Inspiration Link: ${formData.inspo || "(none)"}`,
+      `Inspiration Images: ${fileNames.length ? `${fileNames.join(", ")} (please attach manually if using the mail app)` : "(none)"}`,
       ``,
       `Details:`,
       `${formData.details}`,
@@ -157,12 +277,29 @@
     }
   }
 
-  // Mailto button always available
+  orderImagesInput?.addEventListener("change", () => {
+    selectedImageFiles = Array.from(orderImagesInput.files || []);
+    syncImageInputFiles();
+    validateImageAttachments();
+    renderAttachmentList();
+  });
+
+  // Mailto button always available, but browsers cannot attach local files to mailto links.
   if (mailtoBtn) {
     mailtoBtn.addEventListener("click", () => {
       if (!form) return;
+
+      validateImageAttachments({ enforceEmailJSLimit: false });
+      renderAttachmentList();
+      if (!form.checkValidity()) {
+        form.classList.add("was-validated");
+        setStatus("Please fix the highlighted fields before opening your email app.", true);
+        return;
+      }
+
       const values = Object.fromEntries(new FormData(form).entries());
-      window.location.href = buildMailto(values);
+      const fileNames = getSelectedImageFiles().map(file => file.name);
+      window.location.href = buildMailto(values, fileNames);
     });
   }
 
@@ -173,6 +310,10 @@
     setStatus("");
 
     // Bootstrap validation
+    const sendViaEmailJS = canSendViaEmailJS();
+    validateImageAttachments({ enforceEmailJSLimit: sendViaEmailJS });
+    renderAttachmentList();
+
     if (!form.checkValidity()) {
       form.classList.add("was-validated");
       setStatus("Please fix the highlighted fields.", true);
@@ -184,7 +325,7 @@
       setStatus("Sending...");
 
       // Preferred: EmailJS sendForm collects fields by their `name` attributes :contentReference[oaicite:3]{index=3}
-      if (canSendViaEmailJS()) {
+      if (sendViaEmailJS) {
         initEmailJSOnce();
 
         // Send the form values through EmailJS
@@ -193,17 +334,27 @@
         setStatus("Request sent! We’ll reply soon.");
         form.reset();
         form.classList.remove("was-validated");
+        selectedImageFiles = [];
+        syncImageInputFiles();
+        setImageAttachmentValidity("");
+        renderAttachmentList();
         return;
       }
 
       // Fallback: open email client
       setStatus("Email sending isn’t configured yet—opening your email app...");
       const values = Object.fromEntries(new FormData(form).entries());
-      window.location.href = buildMailto(values);
+      const fileNames = getSelectedImageFiles().map(file => file.name);
+      window.location.href = buildMailto(values, fileNames);
 
     } catch (err) {
       console.error(err);
-      setStatus("Couldn’t send right now. Please use the email button instead.", true);
+      const errorText = `${err?.status || ""} ${err?.text || err?.message || ""}`;
+      if (errorText.includes("413") || errorText.toLowerCase().includes("content too large")) {
+        setStatus("The selected images are too large for website sending. Please remove/compress them, or use the email button and attach them manually.", true);
+      } else {
+        setStatus("Couldn’t send right now. Please use the email button instead.", true);
+      }
     } finally {
       submitBtn && (submitBtn.disabled = false);
     }
