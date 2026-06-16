@@ -35,7 +35,6 @@
   const showcaseCards = document.querySelectorAll(".showcase-card");
   const lightbox = document.getElementById("imageLightbox");
   const lightboxImg = document.getElementById("imageLightboxImg");
-  const lightboxCaption = document.getElementById("imageLightboxCaption");
   const lightboxClose = document.getElementById("imageLightboxClose");
 
   function openLightbox(card) {
@@ -48,7 +47,6 @@
 
     lightboxImg.src = img.src;
     lightboxImg.alt = img.alt || title;
-    if (lightboxCaption) lightboxCaption.textContent = title;
 
     lightbox.classList.add("is-open");
     lightbox.setAttribute("aria-hidden", "false");
@@ -65,7 +63,6 @@
 
     lightboxImg.src = "";
     lightboxImg.alt = "";
-    if (lightboxCaption) lightboxCaption.textContent = "";
   }
 
   showcaseCards.forEach(card => {
