@@ -34,9 +34,11 @@ function normalizeTags(tags) {
     return [];
   }
 
-  return tags
-    .map(tag => normalizeString(tag).toLowerCase())
-    .filter(tag => allowedTags.includes(tag));
+  return [...new Set(
+    tags
+      .map(tag => normalizeString(tag).toLowerCase())
+      .filter(tag => allowedTags.includes(tag))
+  )];
 }
 
 function normalizeImage(image) {
@@ -82,10 +84,12 @@ function normalizeImage(image) {
   return null;
 }
 
-function normalizeShowcaseData(data) {
-  const showcase = Array.isArray(data?.showcase) ? data.showcase : [];
+function normalizeShowcaseItems(showcase) {
+  if (!Array.isArray(showcase)) {
+    return [];
+  }
 
-  const normalizedShowcase = showcase
+  return showcase
     .map(item => {
       const id = normalizeString(item.id);
       const title = normalizeString(item.title);
@@ -98,7 +102,12 @@ function normalizeShowcaseData(data) {
         title,
         descriptions,
         tags,
-        image
+        image: image
+          ? {
+            ...image,
+            alt: image.alt || `${title} cookie set`
+          }
+          : null
       };
     })
     .filter(item =>
@@ -108,8 +117,32 @@ function normalizeShowcaseData(data) {
       item.tags.length &&
       item.image
     );
+}
 
-  return normalizedShowcase.length ? { showcase: normalizedShowcase } : defaultShowcase;
+function normalizeFeaturedShowcaseId(featuredShowcaseId, showcase) {
+  const selectedId = normalizeString(featuredShowcaseId);
+  const defaultFeaturedId = normalizeString(defaultShowcase.featuredShowcaseId) || "showcase-rehearsal-dinner";
+
+  if (selectedId && showcase.some(item => item.id === selectedId)) {
+    return selectedId;
+  }
+
+  if (defaultFeaturedId && showcase.some(item => item.id === defaultFeaturedId)) {
+    return defaultFeaturedId;
+  }
+
+  return showcase[0]?.id || "";
+}
+
+function normalizeShowcaseData(data) {
+  const normalizedShowcase = normalizeShowcaseItems(data?.showcase);
+  const fallbackShowcase = normalizeShowcaseItems(defaultShowcase.showcase);
+  const showcase = normalizedShowcase.length ? normalizedShowcase : fallbackShowcase;
+
+  return {
+    featuredShowcaseId: normalizeFeaturedShowcaseId(data?.featuredShowcaseId, showcase),
+    showcase
+  };
 }
 
 exports.handler = async (event) => {
@@ -124,13 +157,13 @@ exports.handler = async (event) => {
     const savedShowcase = await store.get("showcase", { type: "json" });
 
     if (!savedShowcase) {
-      return jsonResponse(200, defaultShowcase);
+      return jsonResponse(200, normalizeShowcaseData(defaultShowcase));
     }
 
     return jsonResponse(200, normalizeShowcaseData(savedShowcase));
   } catch (err) {
     console.error("Failed to load showcase data.", err);
 
-    return jsonResponse(200, defaultShowcase);
+    return jsonResponse(200, normalizeShowcaseData(defaultShowcase));
   }
 };

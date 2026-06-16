@@ -17,6 +17,9 @@
 
   // Showcase
   const showcaseGrid = document.getElementById("showcaseGrid");
+  const featuredSetImage = document.getElementById("featuredSetImage");
+  const featuredSetTitle = document.getElementById("featuredSetTitle");
+  const featuredSetDescription = document.getElementById("featuredSetDescription");
   const filterButtons = document.querySelectorAll("[data-filter]");
   let currentShowcaseFilter = "all";
 
@@ -144,6 +147,8 @@
     }
   ];
 
+  const defaultFeaturedShowcaseId = "showcase-rehearsal-dinner";
+
   function normalizeDescriptions(descriptions) {
     if (!Array.isArray(descriptions)) {
       return [];
@@ -210,6 +215,20 @@
     return null;
   }
 
+  function normalizeFeaturedShowcaseId(featuredShowcaseId, showcase) {
+    const selectedId = normalizeString(featuredShowcaseId);
+
+    if (selectedId && showcase.some(item => item.id === selectedId)) {
+      return selectedId;
+    }
+
+    if (showcase.some(item => item.id === defaultFeaturedShowcaseId)) {
+      return defaultFeaturedShowcaseId;
+    }
+
+    return showcase[0]?.id || "";
+  }
+
   function normalizeShowcaseData(data) {
     const showcase = Array.isArray(data?.showcase) ? data.showcase : [];
 
@@ -237,7 +256,12 @@
         item.image
       );
 
-    return normalized.length ? normalized : defaultShowcase;
+    const normalizedShowcase = normalized.length ? normalized : defaultShowcase;
+
+    return {
+      featuredShowcaseId: normalizeFeaturedShowcaseId(data?.featuredShowcaseId, normalizedShowcase),
+      showcase: normalizedShowcase
+    };
   }
 
   function getShowcaseImageSrc(image) {
@@ -252,6 +276,26 @@
     return image.src;
   }
 
+  function renderFeaturedSet(showcase, featuredShowcaseId) {
+    if (!featuredSetImage || !featuredSetTitle || !featuredSetDescription) {
+      return;
+    }
+
+    const featuredItem =
+      showcase.find(item => item.id === featuredShowcaseId) ||
+      showcase.find(item => item.id === defaultFeaturedShowcaseId) ||
+      showcase[0];
+
+    if (!featuredItem) {
+      return;
+    }
+
+    featuredSetImage.src = getShowcaseImageSrc(featuredItem.image);
+    featuredSetImage.alt = featuredItem.image?.alt || `${featuredItem.title} cookie set`;
+    featuredSetTitle.textContent = featuredItem.title;
+    featuredSetDescription.textContent = featuredItem.descriptions.join(" • ");
+  }
+
   async function fetchShowcaseData() {
     try {
       const response = await fetch("/.netlify/functions/get-showcase", {
@@ -262,10 +306,10 @@
 
       if (response.ok) {
         const data = await response.json();
-        const showcase = normalizeShowcaseData(data);
+        const showcaseData = normalizeShowcaseData(data);
 
-        if (showcase.length) {
-          return showcase;
+        if (showcaseData.showcase.length) {
+          return showcaseData;
         }
       }
     } catch (err) {
@@ -281,17 +325,20 @@
 
       if (response.ok) {
         const data = await response.json();
-        const showcase = normalizeShowcaseData(data);
+        const showcaseData = normalizeShowcaseData(data);
 
-        if (showcase.length) {
-          return showcase;
+        if (showcaseData.showcase.length) {
+          return showcaseData;
         }
       }
     } catch (err) {
       console.warn("Could not load default showcase data.", err);
     }
 
-    return defaultShowcase;
+    return {
+      featuredShowcaseId: defaultFeaturedShowcaseId,
+      showcase: defaultShowcase
+    };
   }
 
   function setActiveButton(activeBtn) {
@@ -351,10 +398,13 @@
   }
 
   async function initShowcase() {
-    if (!showcaseGrid) return;
+    const showcaseData = await fetchShowcaseData();
 
-    const showcase = await fetchShowcaseData();
-    renderShowcaseCards(showcase);
+    renderFeaturedSet(showcaseData.showcase, showcaseData.featuredShowcaseId);
+
+    if (showcaseGrid) {
+      renderShowcaseCards(showcaseData.showcase);
+    }
   }
 
   filterButtons.forEach(btn => {

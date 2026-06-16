@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 
 const { getSiteContentStore } = require("./_blob-store");
+const defaultShowcase = require("../../data/default-showcase.json");
 
 const {
   jsonResponse,
@@ -87,6 +88,25 @@ function normalizeImage(image) {
   return null;
 }
 
+function normalizeFeaturedShowcaseId(featuredShowcaseId, showcase) {
+  const selectedId = normalizeString(featuredShowcaseId);
+  const defaultFeaturedId = normalizeString(defaultShowcase.featuredShowcaseId) || "showcase-rehearsal-dinner";
+
+  if (selectedId && showcase.some(item => item.id === selectedId)) {
+    return selectedId;
+  }
+
+  if (selectedId) {
+    throw new Error("Featured Showcase card must exist in the Showcase list.");
+  }
+
+  if (defaultFeaturedId && showcase.some(item => item.id === defaultFeaturedId)) {
+    return defaultFeaturedId;
+  }
+
+  return showcase[0]?.id || "";
+}
+
 function normalizeShowcaseData(data) {
   const showcase = Array.isArray(data?.showcase) ? data.showcase : [];
 
@@ -133,9 +153,12 @@ function normalizeShowcaseData(data) {
     };
   }
 
+  const featuredShowcaseId = normalizeFeaturedShowcaseId(data?.featuredShowcaseId, normalizedShowcase);
+
   return {
     valid: true,
     data: {
+      featuredShowcaseId,
       showcase: normalizedShowcase
     }
   };
@@ -167,7 +190,16 @@ exports.handler = async (event) => {
   }
 
   const body = parseBody(event);
-  const normalized = normalizeShowcaseData(body);
+
+  let normalized;
+
+  try {
+    normalized = normalizeShowcaseData(body);
+  } catch (err) {
+    return jsonResponse(400, {
+      error: err.message || "Invalid featured showcase card."
+    });
+  }
 
   if (!normalized.valid) {
     return jsonResponse(400, {
@@ -181,6 +213,7 @@ exports.handler = async (event) => {
 
     return jsonResponse(200, {
       success: true,
+      featuredShowcaseId: normalized.data.featuredShowcaseId,
       showcase: normalized.data.showcase
     });
   } catch (err) {

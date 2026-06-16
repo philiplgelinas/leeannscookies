@@ -146,6 +146,8 @@
     }
   ];
 
+  const defaultFeaturedShowcaseId = "showcase-rehearsal-dinner";
+
   const showcaseTagOptions = [
     { value: "minimal", label: "Minimal" },
     { value: "floral", label: "Floral" },
@@ -161,6 +163,8 @@
 
   let originalShowcase = [];
   let draftShowcase = [];
+  let originalFeaturedShowcaseId = "";
+  let draftFeaturedShowcaseId = "";
   let pendingShowcaseImages = {};
 
   function clonePricing(pricing) {
@@ -180,6 +184,7 @@
     if (editorView) editorView.hidden = true;
     setStatus(loginStatus, "");
     setStatus(editorStatus, "");
+    setStatus(showcaseStatus, "");
   }
 
   function showEditorView(username = "") {
@@ -290,6 +295,20 @@
     return null;
   }
 
+  function normalizeFeaturedShowcaseId(featuredShowcaseId, showcase) {
+    const selectedId = normalizeString(featuredShowcaseId);
+
+    if (selectedId && showcase.some(item => item.id === selectedId)) {
+      return selectedId;
+    }
+
+    if (showcase.some(item => item.id === defaultFeaturedShowcaseId)) {
+      return defaultFeaturedShowcaseId;
+    }
+
+    return showcase[0]?.id || "";
+  }
+
   function normalizeShowcaseData(data) {
     const showcase = Array.isArray(data?.showcase) ? data.showcase : [];
 
@@ -319,7 +338,12 @@
         item.image
       );
 
-    return normalized.length ? normalized : cloneShowcase(defaultShowcase);
+    const normalizedShowcase = normalized.length ? normalized : cloneShowcase(defaultShowcase);
+
+    return {
+      featuredShowcaseId: normalizeFeaturedShowcaseId(data?.featuredShowcaseId, normalizedShowcase),
+      showcase: normalizedShowcase
+    };
   }
 
   function pricingToComparableString(pricing) {
@@ -362,8 +386,9 @@
   function hasUnsavedChanges() {
     const pricingChanged = pricingToComparableString(originalPricing) !== pricingToComparableString(draftPricing);
     const showcaseChanged = showcaseToComparableString(originalShowcase) !== showcaseToComparableString(draftShowcase);
+    const featuredShowcaseChanged = originalFeaturedShowcaseId !== draftFeaturedShowcaseId;
 
-    return pricingChanged || showcaseChanged || hasPendingShowcaseImages();
+    return pricingChanged || showcaseChanged || featuredShowcaseChanged || hasPendingShowcaseImages();
   }
 
   function updateActionBar() {
@@ -650,6 +675,18 @@
     }));
   }
 
+  function updateFeaturedShowcase(id) {
+    if (!draftShowcase.some(item => item.id === id)) {
+      return;
+    }
+
+    draftFeaturedShowcaseId = id;
+
+    renderShowcaseEditor();
+    updateActionBar();
+    setStatus(showcaseStatus, "");
+  }
+
   function isValidShowcaseImageFile(file) {
     return file && allowedShowcaseImageTypes.includes(file.type);
   }
@@ -665,6 +702,10 @@
       image: null
     });
 
+    if (!draftFeaturedShowcaseId) {
+      draftFeaturedShowcaseId = id;
+    }
+
     renderShowcaseEditor();
     updateActionBar();
     setStatus(showcaseStatus, "");
@@ -675,6 +716,10 @@
     delete pendingShowcaseImages[id];
 
     draftShowcase = draftShowcase.filter(item => item.id !== id);
+
+    if (draftFeaturedShowcaseId === id) {
+      draftFeaturedShowcaseId = normalizeFeaturedShowcaseId("", draftShowcase);
+    }
 
     renderShowcaseEditor();
     updateActionBar();
@@ -750,6 +795,28 @@
     `;
       imageWrap.appendChild(placeholder);
     }
+
+    const featuredControl = document.createElement("div");
+    featuredControl.className = "admin-showcase-featured-control";
+
+    const featuredLabel = document.createElement("label");
+    featuredLabel.className = "admin-showcase-featured-label";
+
+    const featuredInput = document.createElement("input");
+    featuredInput.type = "radio";
+    featuredInput.name = "featuredShowcaseId";
+    featuredInput.value = item.id;
+    featuredInput.checked = draftFeaturedShowcaseId === item.id;
+    featuredInput.addEventListener("change", () => updateFeaturedShowcase(item.id));
+
+    const featuredPill = document.createElement("span");
+    featuredPill.className = "admin-showcase-featured-pill";
+    featuredPill.innerHTML = featuredInput.checked
+      ? `<i class="bi bi-star-fill"></i> Featured Set`
+      : `<i class="bi bi-star"></i> Set as Featured`;
+
+    featuredLabel.append(featuredInput, featuredPill);
+    featuredControl.appendChild(featuredLabel);
 
     const uploadRow = document.createElement("div");
     uploadRow.className = "admin-showcase-upload-row";
@@ -864,6 +931,7 @@
     card.append(
       deleteBtn,
       imageWrap,
+      featuredControl,
       uploadRow,
       titleField,
       descriptionsField,
@@ -976,7 +1044,10 @@
       console.warn("Could not load default showcase JSON.", err);
     }
 
-    return cloneShowcase(defaultShowcase);
+    return {
+      featuredShowcaseId: defaultFeaturedShowcaseId,
+      showcase: cloneShowcase(defaultShowcase)
+    };
   }
 
   async function initializeEditor(username = "") {
@@ -984,7 +1055,7 @@
     setStatus(editorStatus, "Loading pricing...");
     setStatus(showcaseStatus, "Loading showcase...");
 
-    const [pricing, showcase] = await Promise.all([
+    const [pricing, showcaseData] = await Promise.all([
       loadPricing(),
       loadShowcase()
     ]);
@@ -992,8 +1063,10 @@
     originalPricing = clonePricing(pricing);
     draftPricing = clonePricing(pricing);
 
-    originalShowcase = cloneShowcase(showcase);
-    draftShowcase = cloneShowcase(showcase);
+    originalShowcase = cloneShowcase(showcaseData.showcase);
+    draftShowcase = cloneShowcase(showcaseData.showcase);
+    originalFeaturedShowcaseId = showcaseData.featuredShowcaseId;
+    draftFeaturedShowcaseId = showcaseData.featuredShowcaseId;
     pendingShowcaseImages = {};
 
     renderPricingEditor();
@@ -1072,6 +1145,8 @@
     draftPricing = [];
     originalShowcase = [];
     draftShowcase = [];
+    originalFeaturedShowcaseId = "";
+    draftFeaturedShowcaseId = "";
     pendingShowcaseImages = {};
     showLoginView();
   });
@@ -1083,6 +1158,7 @@
 
     draftPricing = clonePricing(originalPricing);
     draftShowcase = cloneShowcase(originalShowcase);
+    draftFeaturedShowcaseId = originalFeaturedShowcaseId;
     pendingShowcaseImages = {};
 
     renderPricingEditor();
@@ -1096,6 +1172,10 @@
   function validateDraftShowcase() {
     if (!draftShowcase.length) {
       return "At least one showcase card is required.";
+    }
+
+    if (!draftShowcase.some(item => item.id === draftFeaturedShowcaseId)) {
+      return "Please select a valid Featured Set.";
     }
 
     const invalidItem = draftShowcase.find(item => {
@@ -1249,21 +1329,24 @@
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
+            featuredShowcaseId: draftFeaturedShowcaseId,
             showcase: showcaseToSave
           })
         })
       ]);
 
       const savedPricing = normalizePricingData(pricingData);
-      const savedShowcase = normalizeShowcaseData(showcaseData);
+      const savedShowcaseData = normalizeShowcaseData(showcaseData);
 
       clearPendingShowcaseImages();
 
       originalPricing = clonePricing(savedPricing);
       draftPricing = clonePricing(savedPricing);
 
-      originalShowcase = cloneShowcase(savedShowcase);
-      draftShowcase = cloneShowcase(savedShowcase);
+      originalShowcase = cloneShowcase(savedShowcaseData.showcase);
+      draftShowcase = cloneShowcase(savedShowcaseData.showcase);
+      originalFeaturedShowcaseId = savedShowcaseData.featuredShowcaseId;
+      draftFeaturedShowcaseId = savedShowcaseData.featuredShowcaseId;
 
       renderPricingEditor();
       renderShowcaseEditor();
