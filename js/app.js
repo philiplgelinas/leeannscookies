@@ -31,6 +31,113 @@
   const defaultBtn = document.querySelector('[data-filter="all"]');
   if (defaultBtn) defaultBtn.classList.add("active");
 
+  // Pricing
+  const pricingGrid = document.getElementById("pricingGrid");
+  const defaultPricing = [
+    { id: "set-6", quantity: 6, price: 18 },
+    { id: "set-12", quantity: 12, price: 33 },
+    { id: "set-24", quantity: 24, price: 60 },
+    { id: "set-48", quantity: 48, price: 108 },
+    { id: "set-96", quantity: 96, price: 192 }
+  ];
+
+  function normalizePricingData(data) {
+    const pricing = Array.isArray(data?.pricing) ? data.pricing : [];
+
+    return pricing
+      .map(item => ({
+        id: String(item.id || crypto.randomUUID()),
+        quantity: Number.parseInt(item.quantity, 10),
+        price: Number.parseInt(item.price, 10)
+      }))
+      .filter(item => Number.isInteger(item.quantity) && item.quantity > 0 && Number.isInteger(item.price) && item.price > 0);
+  }
+
+  async function fetchPricingData() {
+    try {
+      const response = await fetch("/.netlify/functions/get-pricing", {
+        headers: {
+          Accept: "application/json"
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const pricing = normalizePricingData(data);
+
+        if (pricing.length) {
+          return pricing;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not load pricing from Netlify Function.", err);
+    }
+
+    try {
+      const response = await fetch("data/default-pricing.json", {
+        headers: {
+          Accept: "application/json"
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const pricing = normalizePricingData(data);
+
+        if (pricing.length) {
+          return pricing;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not load default pricing data.", err);
+    }
+
+    return defaultPricing;
+  }
+
+  function renderPricingCards(pricing) {
+    if (!pricingGrid) return;
+
+    pricingGrid.innerHTML = "";
+
+    pricing.forEach(item => {
+      const col = document.createElement("div");
+      col.className = "col-6 col-md-4 col-lg";
+
+      const card = document.createElement("div");
+      card.className = "card clean-card h-100 text-center";
+
+      const body = document.createElement("div");
+      body.className = "card-body p-4";
+
+      const label = document.createElement("div");
+      label.className = "text-secondary small mb-1";
+      label.textContent = "Set of";
+
+      const quantity = document.createElement("div");
+      quantity.className = "display-6 fw-semibold";
+      quantity.textContent = item.quantity;
+
+      const price = document.createElement("div");
+      price.className = "h4 fw-semibold mt-3 mb-0";
+      price.textContent = `$${item.price}`;
+
+      body.append(label, quantity, price);
+      card.appendChild(body);
+      col.appendChild(card);
+      pricingGrid.appendChild(col);
+    });
+  }
+
+  async function initPricing() {
+    if (!pricingGrid) return;
+
+    const pricing = await fetchPricingData();
+    renderPricingCards(pricing);
+  }
+
+  initPricing();
+
   // Showcase image lightbox
   const showcaseCards = document.querySelectorAll(".showcase-card");
   const lightbox = document.getElementById("imageLightbox");
@@ -267,7 +374,7 @@
   }
 
   function initEmailJSOnce() {
-    // EmailJS init (v4 style) :contentReference[oaicite:2]{index=2}
+    // EmailJS init (v4 style)
     if (!window.__emailjs_inited) {
       emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
       window.__emailjs_inited = true;
@@ -321,7 +428,7 @@
       submitBtn && (submitBtn.disabled = true);
       setStatus("Sending...");
 
-      // Preferred: EmailJS sendForm collects fields by their `name` attributes :contentReference[oaicite:3]{index=3}
+      // Preferred: EmailJS sendForm collects fields by their `name` attributes
       if (sendViaEmailJS) {
         initEmailJSOnce();
 
