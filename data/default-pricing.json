@@ -1,0 +1,9 @@
+{
+  "pricing": [
+    { "id": "set-6", "quantity": 6, "price": 18 },
+    { "id": "set-12", "quantity": 12, "price": 33 },
+    { "id": "set-24", "quantity": 24, "price": 60 },
+    { "id": "set-48", "quantity": 48, "price": 108 },
+    { "id": "set-96", "quantity": 96, "price": 192 }
+  ]
+}
