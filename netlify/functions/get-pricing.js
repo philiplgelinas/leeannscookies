@@ -1,4 +1,4 @@
-const { getStore } = require("@netlify/blobs");
+const { getSiteContentStore } = require("./_blob-store");
 
 const defaultPricing = {
   pricing: [
@@ -49,7 +49,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const store = getStore("site-content");
+    const store = getSiteContentStore();
     const savedPricing = await store.get("pricing", { type: "json" });
 
     if (!savedPricing) {

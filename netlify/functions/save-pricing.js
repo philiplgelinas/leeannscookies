@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { getStore } = require("@netlify/blobs");
+const { getSiteContentStore } = require("./_blob-store");
 
 const {
   jsonResponse,
@@ -88,7 +88,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const store = getStore("site-content");
+    const store = getSiteContentStore();
     await store.setJSON("pricing", normalized.data);
 
     return jsonResponse(200, {
