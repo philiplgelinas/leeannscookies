@@ -253,13 +253,23 @@ body{
   border-radius: 999px;
   background: #fff;
   color: #111;
-  font-size: 1.5rem;
+  font-size: 0;
   line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 10px 30px rgba(0,0,0,0.25);
   cursor: pointer;
+}
+
+.image-lightbox-close::before{
+  content: "×";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -52%);
+  font-size: 1.6rem;
+  line-height: 1;
 }
 
 .image-lightbox-close:hover{
