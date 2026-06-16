@@ -8,8 +8,10 @@
   const logoutBtn = document.getElementById("logoutBtn");
   const adminPricingGrid = document.getElementById("adminPricingGrid");
   const adminShowcaseGrid = document.getElementById("adminShowcaseGrid");
+  const adminAboutBakerFields = document.getElementById("adminAboutBakerFields");
   const editorStatus = document.getElementById("editorStatus");
   const showcaseStatus = document.getElementById("showcaseStatus");
+  const aboutBakerStatus = document.getElementById("aboutBakerStatus");
   const adminActions = document.getElementById("adminActions");
   const revertChangesBtn = document.getElementById("revertChangesBtn");
   const saveChangesBtn = document.getElementById("saveChangesBtn");
@@ -20,6 +22,12 @@
     { id: "set-24", quantity: 24, price: 60 },
     { id: "set-48", quantity: 48, price: 108 },
     { id: "set-96", quantity: 96, price: 192 }
+  ];
+
+  const defaultAboutBakerParagraphs = [
+    "I’m a full-time speech and language pathologist working in a private school with neurodivergent children. My love for baking was inspired by my aunt (our family’s favorite baker) who was known for making the most unforgettable cookies.",
+    "Though she bravely lost her battle with breast cancer, she never lost her passion for baking or her joy in sharing it with others. Cookies were her way of celebrating every occasion and bringing people together.",
+    "I had the honor of becoming her sous baker, spending countless hours by her side, learning, laughing, and creating sweet memories. Through those moments, her passion became mine and today, I continue baking in her spirit, sharing love one cookie at a time."
   ];
 
   const defaultShowcase = [
@@ -167,8 +175,15 @@
   let draftFeaturedShowcaseId = "";
   let pendingShowcaseImages = {};
 
+  let originalAboutBakerParagraphs = [];
+  let draftAboutBakerParagraphs = [];
+
   function clonePricing(pricing) {
     return pricing.map(item => ({ ...item }));
+  }
+
+  function cloneAboutBakerParagraphs(paragraphs) {
+    return [...paragraphs];
   }
 
   function setStatus(el, message, type = "") {
@@ -185,6 +200,7 @@
     setStatus(loginStatus, "");
     setStatus(editorStatus, "");
     setStatus(showcaseStatus, "");
+    setStatus(aboutBakerStatus, "");
   }
 
   function showEditorView(username = "") {
@@ -192,6 +208,10 @@
     if (editorView) editorView.hidden = false;
     if (adminUser) adminUser.textContent = username ? `Signed in as ${username}` : "";
     setStatus(loginStatus, "");
+  }
+
+  function normalizeString(value) {
+    return String(value || "").trim();
   }
 
   function normalizePricingData(data) {
@@ -214,8 +234,29 @@
     return normalized.length ? normalized : clonePricing(defaultPricing);
   }
 
-  function normalizeString(value) {
-    return String(value || "").trim();
+  function normalizeAboutBakerParagraphs(paragraphs) {
+    if (!Array.isArray(paragraphs)) {
+      return [];
+    }
+
+    return paragraphs
+      .map(paragraph => normalizeString(paragraph))
+      .filter(Boolean)
+      .slice(0, 3);
+  }
+
+  function normalizeAboutBakerData(data) {
+    const paragraphs = normalizeAboutBakerParagraphs(data?.paragraphs);
+
+    return paragraphs.length === 3
+      ? paragraphs
+      : cloneAboutBakerParagraphs(defaultAboutBakerParagraphs);
+  }
+
+  function aboutBakerToComparableString(paragraphs) {
+    return JSON.stringify(
+      paragraphs.map(paragraph => normalizeString(paragraph))
+    );
   }
 
   function cloneShowcase(showcase) {
@@ -387,8 +428,9 @@
     const pricingChanged = pricingToComparableString(originalPricing) !== pricingToComparableString(draftPricing);
     const showcaseChanged = showcaseToComparableString(originalShowcase) !== showcaseToComparableString(draftShowcase);
     const featuredShowcaseChanged = originalFeaturedShowcaseId !== draftFeaturedShowcaseId;
+    const aboutBakerChanged = aboutBakerToComparableString(originalAboutBakerParagraphs) !== aboutBakerToComparableString(draftAboutBakerParagraphs);
 
-    return pricingChanged || showcaseChanged || featuredShowcaseChanged || hasPendingShowcaseImages();
+    return pricingChanged || showcaseChanged || featuredShowcaseChanged || aboutBakerChanged || hasPendingShowcaseImages();
   }
 
   function updateActionBar() {
@@ -970,6 +1012,76 @@
     markInvalidShowcaseInputs();
   }
 
+  function validateDraftAboutBaker() {
+    if (draftAboutBakerParagraphs.length !== 3) {
+      return "All three About the Baker paragraphs are required.";
+    }
+
+    const hasInvalidParagraph = draftAboutBakerParagraphs.some(paragraph => !normalizeString(paragraph));
+
+    if (hasInvalidParagraph) {
+      return "All three About the Baker paragraphs are required.";
+    }
+
+    return "";
+  }
+
+  function markInvalidAboutBakerInputs() {
+    const textareas = adminAboutBakerFields?.querySelectorAll("[data-about-baker-field='paragraph']") || [];
+
+    textareas.forEach(textarea => {
+      textarea.classList.toggle("is-invalid", !normalizeString(textarea.value));
+    });
+  }
+
+  function updateAboutBakerParagraph(index, value) {
+    draftAboutBakerParagraphs = draftAboutBakerParagraphs.map((paragraph, paragraphIndex) =>
+      paragraphIndex === index ? value : paragraph
+    );
+
+    markInvalidAboutBakerInputs();
+    updateActionBar();
+    setStatus(aboutBakerStatus, "");
+  }
+
+  function createAboutBakerField(paragraph, index) {
+    const field = document.createElement("div");
+    field.className = "admin-about-baker-field";
+
+    const label = document.createElement("label");
+    label.className = "admin-about-baker-label";
+    label.setAttribute("for", `about-baker-paragraph-${index}`);
+    label.textContent = `Paragraph ${index + 1}`;
+
+    const textarea = document.createElement("textarea");
+    textarea.className = "admin-about-baker-textarea";
+    textarea.id = `about-baker-paragraph-${index}`;
+    textarea.value = paragraph;
+    textarea.rows = 5;
+    textarea.setAttribute("data-about-baker-field", "paragraph");
+    textarea.addEventListener("input", () => updateAboutBakerParagraph(index, textarea.value));
+
+    const helpText = document.createElement("div");
+    helpText.className = "admin-about-baker-help-text";
+    helpText.textContent = "Plain text only. This paragraph will appear exactly as entered on the public website.";
+
+    field.append(label, textarea, helpText);
+
+    return field;
+  }
+
+  function renderAboutBakerEditor() {
+    if (!adminAboutBakerFields) return;
+
+    adminAboutBakerFields.innerHTML = "";
+
+    draftAboutBakerParagraphs.forEach((paragraph, index) => {
+      adminAboutBakerFields.appendChild(createAboutBakerField(paragraph, index));
+    });
+
+    markInvalidAboutBakerInputs();
+  }
+
   async function fetchJson(url, options = {}) {
     const response = await fetch(url, {
       credentials: "same-origin",
@@ -1050,14 +1162,42 @@
     };
   }
 
+  async function loadAboutBaker() {
+    try {
+      const data = await fetchJson("/.netlify/functions/get-about-baker");
+      return normalizeAboutBakerData(data);
+    } catch (err) {
+      console.warn("Could not load About the Baker from function.", err);
+    }
+
+    try {
+      const response = await fetch("/data/default-about-baker.json", {
+        headers: {
+          Accept: "application/json"
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return normalizeAboutBakerData(data);
+      }
+    } catch (err) {
+      console.warn("Could not load default About the Baker JSON.", err);
+    }
+
+    return cloneAboutBakerParagraphs(defaultAboutBakerParagraphs);
+  }
+
   async function initializeEditor(username = "") {
     showEditorView(username);
     setStatus(editorStatus, "Loading pricing...");
     setStatus(showcaseStatus, "Loading showcase...");
+    setStatus(aboutBakerStatus, "Loading About the Baker...");
 
-    const [pricing, showcaseData] = await Promise.all([
+    const [pricing, showcaseData, aboutBakerParagraphs] = await Promise.all([
       loadPricing(),
-      loadShowcase()
+      loadShowcase(),
+      loadAboutBaker()
     ]);
 
     originalPricing = clonePricing(pricing);
@@ -1069,12 +1209,17 @@
     draftFeaturedShowcaseId = showcaseData.featuredShowcaseId;
     pendingShowcaseImages = {};
 
+    originalAboutBakerParagraphs = cloneAboutBakerParagraphs(aboutBakerParagraphs);
+    draftAboutBakerParagraphs = cloneAboutBakerParagraphs(aboutBakerParagraphs);
+
     renderPricingEditor();
     renderShowcaseEditor();
+    renderAboutBakerEditor();
     updateActionBar();
 
     setStatus(editorStatus, "");
     setStatus(showcaseStatus, "");
+    setStatus(aboutBakerStatus, "");
   }
 
   async function checkSession() {
@@ -1148,6 +1293,8 @@
     originalFeaturedShowcaseId = "";
     draftFeaturedShowcaseId = "";
     pendingShowcaseImages = {};
+    originalAboutBakerParagraphs = [];
+    draftAboutBakerParagraphs = [];
     showLoginView();
   });
 
@@ -1160,13 +1307,16 @@
     draftShowcase = cloneShowcase(originalShowcase);
     draftFeaturedShowcaseId = originalFeaturedShowcaseId;
     pendingShowcaseImages = {};
+    draftAboutBakerParagraphs = cloneAboutBakerParagraphs(originalAboutBakerParagraphs);
 
     renderPricingEditor();
     renderShowcaseEditor();
+    renderAboutBakerEditor();
     updateActionBar();
 
     setStatus(editorStatus, "Changes reverted.", "success");
     setStatus(showcaseStatus, "Changes reverted.", "success");
+    setStatus(aboutBakerStatus, "Changes reverted.", "success");
   });
 
   function validateDraftShowcase() {
@@ -1283,6 +1433,7 @@
   saveChangesBtn?.addEventListener("click", async () => {
     markInvalidInputs();
     markInvalidShowcaseInputs();
+    markInvalidAboutBakerInputs();
 
     const pricingValidationMessage = validateDraftPricing();
 
@@ -1298,11 +1449,20 @@
       return;
     }
 
+    const aboutBakerValidationMessage = validateDraftAboutBaker();
+
+    if (aboutBakerValidationMessage) {
+      setStatus(aboutBakerStatus, aboutBakerValidationMessage, "error");
+      return;
+    }
+
     const pricingToSave = draftPricing.map(item => ({
       id: item.id,
       quantity: Number.parseInt(item.quantity, 10),
       price: Number.parseInt(item.price, 10)
     }));
+
+    const aboutBakerToSave = draftAboutBakerParagraphs.map(paragraph => normalizeString(paragraph));
 
     try {
       if (saveChangesBtn) saveChangesBtn.disabled = true;
@@ -1310,10 +1470,11 @@
 
       setStatus(editorStatus, "Saving pricing...");
       setStatus(showcaseStatus, "Uploading images and saving showcase...");
+      setStatus(aboutBakerStatus, "Saving About the Baker...");
 
       const showcaseToSave = await buildShowcaseForSave();
 
-      const [pricingData, showcaseData] = await Promise.all([
+      const [pricingData, showcaseData, aboutBakerData] = await Promise.all([
         fetchJson("/.netlify/functions/save-pricing", {
           method: "POST",
           headers: {
@@ -1332,11 +1493,21 @@
             featuredShowcaseId: draftFeaturedShowcaseId,
             showcase: showcaseToSave
           })
+        }),
+        fetchJson("/.netlify/functions/save-about-baker", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            paragraphs: aboutBakerToSave
+          })
         })
       ]);
 
       const savedPricing = normalizePricingData(pricingData);
       const savedShowcaseData = normalizeShowcaseData(showcaseData);
+      const savedAboutBakerParagraphs = normalizeAboutBakerData(aboutBakerData);
 
       clearPendingShowcaseImages();
 
@@ -1348,14 +1519,20 @@
       originalFeaturedShowcaseId = savedShowcaseData.featuredShowcaseId;
       draftFeaturedShowcaseId = savedShowcaseData.featuredShowcaseId;
 
+      originalAboutBakerParagraphs = cloneAboutBakerParagraphs(savedAboutBakerParagraphs);
+      draftAboutBakerParagraphs = cloneAboutBakerParagraphs(savedAboutBakerParagraphs);
+
       renderPricingEditor();
       renderShowcaseEditor();
+      renderAboutBakerEditor();
       updateActionBar();
 
       setStatus(editorStatus, "Pricing saved.", "success");
       setStatus(showcaseStatus, "Showcase saved. The live site will now use these cards.", "success");
+      setStatus(aboutBakerStatus, "About the Baker saved.", "success");
     } catch (err) {
       setStatus(showcaseStatus, err.message || "Could not save changes.", "error");
+      setStatus(aboutBakerStatus, err.message || "Could not save changes.", "error");
     } finally {
       if (saveChangesBtn) saveChangesBtn.disabled = false;
       if (revertChangesBtn) revertChangesBtn.disabled = false;

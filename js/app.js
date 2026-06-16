@@ -15,6 +15,94 @@
     return String(value || "").trim();
   }
 
+  // About the Baker
+  const aboutBakerParagraphs = document.getElementById("aboutBakerParagraphs");
+
+  const defaultAboutBakerParagraphs = [
+    "I’m a full-time speech and language pathologist working in a private school with neurodivergent children. My love for baking was inspired by my aunt (our family’s favorite baker) who was known for making the most unforgettable cookies.",
+    "Though she bravely lost her battle with breast cancer, she never lost her passion for baking or her joy in sharing it with others. Cookies were her way of celebrating every occasion and bringing people together.",
+    "I had the honor of becoming her sous baker, spending countless hours by her side, learning, laughing, and creating sweet memories. Through those moments, her passion became mine and today, I continue baking in her spirit, sharing love one cookie at a time."
+  ];
+
+  function normalizeAboutBakerParagraphs(paragraphs) {
+    if (!Array.isArray(paragraphs)) {
+      return [];
+    }
+
+    return paragraphs
+      .map(paragraph => normalizeString(paragraph))
+      .filter(Boolean)
+      .slice(0, 3);
+  }
+
+  function normalizeAboutBakerData(data) {
+    const paragraphs = normalizeAboutBakerParagraphs(data?.paragraphs);
+
+    return paragraphs.length === 3 ? paragraphs : defaultAboutBakerParagraphs;
+  }
+
+  async function fetchAboutBakerData() {
+    try {
+      const response = await fetch("/.netlify/functions/get-about-baker", {
+        headers: {
+          Accept: "application/json"
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const paragraphs = normalizeAboutBakerData(data);
+
+        if (paragraphs.length) {
+          return paragraphs;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not load About the Baker from Netlify Function.", err);
+    }
+
+    try {
+      const response = await fetch("data/default-about-baker.json", {
+        headers: {
+          Accept: "application/json"
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const paragraphs = normalizeAboutBakerData(data);
+
+        if (paragraphs.length) {
+          return paragraphs;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not load default About the Baker data.", err);
+    }
+
+    return defaultAboutBakerParagraphs;
+  }
+
+  function renderAboutBakerParagraphs(paragraphs) {
+    if (!aboutBakerParagraphs) return;
+
+    aboutBakerParagraphs.innerHTML = "";
+
+    paragraphs.forEach((paragraph, index) => {
+      const p = document.createElement("p");
+      p.className = index === paragraphs.length - 1 ? "mb-0" : "mb-3";
+      p.textContent = paragraph;
+      aboutBakerParagraphs.appendChild(p);
+    });
+  }
+
+  async function initAboutBaker() {
+    if (!aboutBakerParagraphs) return;
+
+    const paragraphs = await fetchAboutBakerData();
+    renderAboutBakerParagraphs(paragraphs);
+  }
+
   // Showcase
   const showcaseGrid = document.getElementById("showcaseGrid");
   const featuredSetImage = document.getElementById("featuredSetImage");
@@ -589,6 +677,7 @@
 
   initShowcase();
   initPricing();
+  initAboutBaker();
 
   // Request form
   const form = document.getElementById("cookieRequestForm");

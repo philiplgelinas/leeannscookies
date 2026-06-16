@@ -686,6 +686,57 @@ body{
   outline-offset: 3px;
 }
 
+/* Admin About the Baker editor */
+.admin-about-baker-fields{
+  display: grid;
+  gap: 18px;
+  max-width: 920px;
+}
+
+.admin-about-baker-field{
+  padding: 18px;
+  border: 1px solid var(--admin-border);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: var(--admin-shadow);
+}
+
+.admin-about-baker-label{
+  display: block;
+  margin-bottom: 8px;
+  color: var(--admin-muted);
+  font-size: .85rem;
+  font-weight: 600;
+}
+
+.admin-about-baker-textarea{
+  width: 100%;
+  min-height: 132px;
+  padding: 14px 16px;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 16px;
+  color: var(--admin-text);
+  background: #fff;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.admin-about-baker-textarea:focus{
+  border-color: rgba(0,0,0,0.35);
+  box-shadow: 0 0 0 .25rem rgba(0,0,0,0.1);
+  outline: none;
+}
+
+.admin-about-baker-textarea.is-invalid{
+  border-color: var(--admin-danger);
+}
+
+.admin-about-baker-help-text{
+  margin-top: 8px;
+  color: var(--admin-muted);
+  font-size: .8rem;
+}
+
 @media (max-width: 768px){
   .admin-showcase-item{
     flex: 1 1 100%;
