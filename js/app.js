@@ -3,9 +3,296 @@
   const yearEl = document.getElementById("year");
   if (yearEl) yearEl.textContent = new Date().getFullYear();
 
-  // Showcase filtering
+  function createClientId(prefix = "item") {
+    if (window.crypto?.randomUUID) {
+      return `${prefix}-${crypto.randomUUID()}`;
+    }
+
+    return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  function normalizeString(value) {
+    return String(value || "").trim();
+  }
+
+  // Showcase
+  const showcaseGrid = document.getElementById("showcaseGrid");
   const filterButtons = document.querySelectorAll("[data-filter]");
-  const items = document.querySelectorAll(".showcase-item");
+  let currentShowcaseFilter = "all";
+
+  const defaultShowcase = [
+    {
+      id: "showcase-baby-shower",
+      title: "Baby Shower",
+      descriptions: ["Clean design", "Soft palette"],
+      tags: ["kids", "lux"],
+      image: {
+        type: "static",
+        src: "img/babyshower.png",
+        alt: "Playful cookie set"
+      }
+    },
+    {
+      id: "showcase-bridal-shower",
+      title: "Bridal Shower",
+      descriptions: ["Delicate detail", "Pastel tones"],
+      tags: ["floral", "lux"],
+      image: {
+        type: "static",
+        src: "img/bridalshower.png",
+        alt: "Floral cookie set"
+      }
+    },
+    {
+      id: "showcase-christening",
+      title: "Christening",
+      descriptions: ["Clean lines", "Simple design"],
+      tags: ["kids", "minimal"],
+      image: {
+        type: "static",
+        src: "img/christening.png",
+        alt: "Minimal cookie set"
+      }
+    },
+    {
+      id: "showcase-christmas",
+      title: "Christmas",
+      descriptions: ["Festive design", "Vibrant colors"],
+      tags: ["kids", "lux"],
+      image: {
+        type: "static",
+        src: "img/christmas.png",
+        alt: "Christmas cookie set"
+      }
+    },
+    {
+      id: "showcase-galentines-day",
+      title: "Galentine’s Day",
+      descriptions: ["Romantic design", "Soft blush & red tones"],
+      tags: ["lux", "minimal", "floral"],
+      image: {
+        type: "static",
+        src: "img/galentines.png",
+        alt: "Galentine's Day cookie set"
+      }
+    },
+    {
+      id: "showcase-disney-baby",
+      title: "Disney Baby",
+      descriptions: ["Character themed", "Bright & playful"],
+      tags: ["kids"],
+      image: {
+        type: "static",
+        src: "img/disney.png",
+        alt: "Disney themed cookie set"
+      }
+    },
+    {
+      id: "showcase-30th-birthday",
+      title: "30th Birthday",
+      descriptions: ["Modern design", "Chic & celebratory"],
+      tags: ["lux", "minimal"],
+      image: {
+        type: "static",
+        src: "img/30thbirthday.png",
+        alt: "30th birthday cookie set"
+      }
+    },
+    {
+      id: "showcase-easter",
+      title: "Easter",
+      descriptions: ["Spring colors", "Playful & pastel design"],
+      tags: ["kids", "floral", "lux"],
+      image: {
+        type: "static",
+        src: "img/easter.png",
+        alt: "Easter cookie set"
+      }
+    },
+    {
+      id: "showcase-mothers-day",
+      title: "Mother’s Day",
+      descriptions: ["Elegant florals", "Soft spring colors"],
+      tags: ["floral", "lux"],
+      image: {
+        type: "static",
+        src: "img/mothersday.png",
+        alt: "Mother's Day cookie set"
+      }
+    },
+    {
+      id: "showcase-first-birthday",
+      title: "First Birthday",
+      descriptions: ["Playful theme", "Sweet celebratory details"],
+      tags: ["kids", "lux"],
+      image: {
+        type: "static",
+        src: "img/firstbirthday.png",
+        alt: "First birthday cookie set"
+      }
+    },
+    {
+      id: "showcase-rehearsal-dinner",
+      title: "Rehearsal Dinner",
+      descriptions: ["Elegant design", "Soft romantic palette"],
+      tags: ["minimal", "lux"],
+      image: {
+        type: "static",
+        src: "img/wedding.png",
+        alt: "Rehearsal dinner cookie set"
+      }
+    }
+  ];
+
+  function normalizeDescriptions(descriptions) {
+    if (!Array.isArray(descriptions)) {
+      return [];
+    }
+
+    return descriptions
+      .map(description => normalizeString(description))
+      .filter(Boolean)
+      .slice(0, 4);
+  }
+
+  function normalizeTags(tags) {
+    const allowedTags = ["minimal", "floral", "kids", "lux"];
+
+    if (!Array.isArray(tags)) {
+      return [];
+    }
+
+    return tags
+      .map(tag => normalizeString(tag).toLowerCase())
+      .filter(tag => allowedTags.includes(tag));
+  }
+
+  function normalizeImage(image) {
+    if (!image || typeof image !== "object") {
+      return null;
+    }
+
+    const type = normalizeString(image.type);
+    const alt = normalizeString(image.alt);
+
+    if (type === "static") {
+      const src = normalizeString(image.src);
+
+      if (!src) {
+        return null;
+      }
+
+      return {
+        type: "static",
+        src,
+        alt
+      };
+    }
+
+    if (type === "blob") {
+      const key = normalizeString(image.key);
+      const url = normalizeString(image.url);
+      const contentType = normalizeString(image.contentType);
+
+      if (!key || !url) {
+        return null;
+      }
+
+      return {
+        type: "blob",
+        key,
+        url,
+        contentType,
+        alt
+      };
+    }
+
+    return null;
+  }
+
+  function normalizeShowcaseData(data) {
+    const showcase = Array.isArray(data?.showcase) ? data.showcase : [];
+
+    const normalized = showcase
+      .map(item => {
+        const id = normalizeString(item.id) || createClientId("showcase");
+        const title = normalizeString(item.title);
+        const descriptions = normalizeDescriptions(item.descriptions);
+        const tags = normalizeTags(item.tags);
+        const image = normalizeImage(item.image);
+
+        return {
+          id,
+          title,
+          descriptions,
+          tags,
+          image
+        };
+      })
+      .filter(item =>
+        item.id &&
+        item.title &&
+        item.descriptions.length &&
+        item.tags.length &&
+        item.image
+      );
+
+    return normalized.length ? normalized : defaultShowcase;
+  }
+
+  function getShowcaseImageSrc(image) {
+    if (!image) {
+      return "";
+    }
+
+    if (image.type === "blob") {
+      return image.url;
+    }
+
+    return image.src;
+  }
+
+  async function fetchShowcaseData() {
+    try {
+      const response = await fetch("/.netlify/functions/get-showcase", {
+        headers: {
+          Accept: "application/json"
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const showcase = normalizeShowcaseData(data);
+
+        if (showcase.length) {
+          return showcase;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not load showcase from Netlify Function.", err);
+    }
+
+    try {
+      const response = await fetch("data/default-showcase.json", {
+        headers: {
+          Accept: "application/json"
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const showcase = normalizeShowcaseData(data);
+
+        if (showcase.length) {
+          return showcase;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not load default showcase data.", err);
+    }
+
+    return defaultShowcase;
+  }
 
   function setActiveButton(activeBtn) {
     filterButtons.forEach(btn => btn.classList.remove("active"));
@@ -13,11 +300,61 @@
   }
 
   function filterShowcase(tag) {
+    currentShowcaseFilter = tag;
+
+    const items = document.querySelectorAll(".showcase-item");
+
     items.forEach(item => {
       const tags = (item.getAttribute("data-tags") || "").split(" ").filter(Boolean);
       const show = tag === "all" ? true : tags.includes(tag);
       item.hidden = !show;
     });
+  }
+
+  function renderShowcaseCards(showcase) {
+    if (!showcaseGrid) return;
+
+    showcaseGrid.innerHTML = "";
+
+    showcase.forEach(item => {
+      const col = document.createElement("div");
+      col.className = "col-12 col-md-6 col-lg-4 showcase-item";
+      col.setAttribute("data-tags", item.tags.join(" "));
+
+      const card = document.createElement("div");
+      card.className = "showcase-card";
+
+      const img = document.createElement("img");
+      img.src = getShowcaseImageSrc(item.image);
+      img.alt = item.image.alt || `${item.title} cookie set`;
+      img.loading = "lazy";
+
+      const meta = document.createElement("div");
+      meta.className = "showcase-meta";
+
+      const title = document.createElement("div");
+      title.className = "fw-semibold";
+      title.textContent = item.title;
+
+      const description = document.createElement("div");
+      description.className = "text-secondary small";
+      description.textContent = item.descriptions.join(" • ");
+
+      meta.append(title, description);
+      card.append(img, meta);
+      col.appendChild(card);
+      showcaseGrid.appendChild(col);
+    });
+
+    bindShowcaseLightbox();
+    filterShowcase(currentShowcaseFilter);
+  }
+
+  async function initShowcase() {
+    if (!showcaseGrid) return;
+
+    const showcase = await fetchShowcaseData();
+    renderShowcaseCards(showcase);
   }
 
   filterButtons.forEach(btn => {
@@ -46,7 +383,7 @@
 
     return pricing
       .map(item => ({
-        id: String(item.id || crypto.randomUUID()),
+        id: String(item.id || createClientId("pricing")),
         quantity: Number.parseInt(item.quantity, 10),
         price: Number.parseInt(item.price, 10)
       }))
@@ -136,10 +473,7 @@
     renderPricingCards(pricing);
   }
 
-  initPricing();
-
   // Showcase image lightbox
-  const showcaseCards = document.querySelectorAll(".showcase-card");
   const lightbox = document.getElementById("imageLightbox");
   const lightboxImg = document.getElementById("imageLightboxImg");
   const lightboxClose = document.getElementById("imageLightboxClose");
@@ -172,20 +506,24 @@
     lightboxImg.alt = "";
   }
 
-  showcaseCards.forEach(card => {
-    card.setAttribute("tabindex", "0");
-    card.setAttribute("role", "button");
-    card.setAttribute("aria-label", "Open enlarged cookie image");
+  function bindShowcaseLightbox() {
+    const showcaseCards = document.querySelectorAll(".showcase-card");
 
-    card.addEventListener("click", () => openLightbox(card));
+    showcaseCards.forEach(card => {
+      card.setAttribute("tabindex", "0");
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-label", "Open enlarged cookie image");
 
-    card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        openLightbox(card);
-      }
+      card.addEventListener("click", () => openLightbox(card));
+
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openLightbox(card);
+        }
+      });
     });
-  });
+  }
 
   lightboxClose?.addEventListener("click", closeLightbox);
 
@@ -198,6 +536,9 @@
       closeLightbox();
     }
   });
+
+  initShowcase();
+  initPricing();
 
   // Request form
   const form = document.getElementById("cookieRequestForm");
@@ -413,7 +754,6 @@
     e.preventDefault();
     setStatus("");
 
-    // Bootstrap validation
     const sendViaEmailJS = canSendViaEmailJS();
     validateImageAttachments({ enforceEmailJSLimit: sendViaEmailJS });
     renderAttachmentList();
@@ -428,11 +768,9 @@
       submitBtn && (submitBtn.disabled = true);
       setStatus("Sending...");
 
-      // Preferred: EmailJS sendForm collects fields by their `name` attributes
       if (sendViaEmailJS) {
         initEmailJSOnce();
 
-        // Send the form values through EmailJS
         await emailjs.sendForm(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, form);
 
         setStatus("Request sent! We’ll reply soon.");
@@ -445,7 +783,6 @@
         return;
       }
 
-      // Fallback: open email client
       setStatus("Email sending isn’t configured yet—opening your email app...");
       const values = Object.fromEntries(new FormData(form).entries());
       const fileNames = getSelectedImageFiles().map(file => file.name);

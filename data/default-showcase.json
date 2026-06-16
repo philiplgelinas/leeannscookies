@@ -1,0 +1,125 @@
+{
+  "showcase": [
+    {
+      "id": "showcase-baby-shower",
+      "title": "Baby Shower",
+      "descriptions": ["Clean design", "Soft palette"],
+      "tags": ["kids", "lux"],
+      "image": {
+        "type": "static",
+        "src": "img/babyshower.png",
+        "alt": "Playful cookie set"
+      }
+    },
+    {
+      "id": "showcase-bridal-shower",
+      "title": "Bridal Shower",
+      "descriptions": ["Delicate detail", "Pastel tones"],
+      "tags": ["floral", "lux"],
+      "image": {
+        "type": "static",
+        "src": "img/bridalshower.png",
+        "alt": "Floral cookie set"
+      }
+    },
+    {
+      "id": "showcase-christening",
+      "title": "Christening",
+      "descriptions": ["Clean lines", "Simple design"],
+      "tags": ["kids", "minimal"],
+      "image": {
+        "type": "static",
+        "src": "img/christening.png",
+        "alt": "Minimal cookie set"
+      }
+    },
+    {
+      "id": "showcase-christmas",
+      "title": "Christmas",
+      "descriptions": ["Festive design", "Vibrant colors"],
+      "tags": ["kids", "lux"],
+      "image": {
+        "type": "static",
+        "src": "img/christmas.png",
+        "alt": "Christmas cookie set"
+      }
+    },
+    {
+      "id": "showcase-galentines-day",
+      "title": "Galentine’s Day",
+      "descriptions": ["Romantic design", "Soft blush & red tones"],
+      "tags": ["lux", "minimal", "floral"],
+      "image": {
+        "type": "static",
+        "src": "img/galentines.png",
+        "alt": "Galentine's Day cookie set"
+      }
+    },
+    {
+      "id": "showcase-disney-baby",
+      "title": "Disney Baby",
+      "descriptions": ["Character themed", "Bright & playful"],
+      "tags": ["kids"],
+      "image": {
+        "type": "static",
+        "src": "img/disney.png",
+        "alt": "Disney themed cookie set"
+      }
+    },
+    {
+      "id": "showcase-30th-birthday",
+      "title": "30th Birthday",
+      "descriptions": ["Modern design", "Chic & celebratory"],
+      "tags": ["lux", "minimal"],
+      "image": {
+        "type": "static",
+        "src": "img/30thbirthday.png",
+        "alt": "30th birthday cookie set"
+      }
+    },
+    {
+      "id": "showcase-easter",
+      "title": "Easter",
+      "descriptions": ["Spring colors", "Playful & pastel design"],
+      "tags": ["kids", "floral", "lux"],
+      "image": {
+        "type": "static",
+        "src": "img/easter.png",
+        "alt": "Easter cookie set"
+      }
+    },
+    {
+      "id": "showcase-mothers-day",
+      "title": "Mother’s Day",
+      "descriptions": ["Elegant florals", "Soft spring colors"],
+      "tags": ["floral", "lux"],
+      "image": {
+        "type": "static",
+        "src": "img/mothersday.png",
+        "alt": "Mother's Day cookie set"
+      }
+    },
+    {
+      "id": "showcase-first-birthday",
+      "title": "First Birthday",
+      "descriptions": ["Playful theme", "Sweet celebratory details"],
+      "tags": ["kids", "lux"],
+      "image": {
+        "type": "static",
+        "src": "img/firstbirthday.png",
+        "alt": "First birthday cookie set"
+      }
+    },
+    {
+      "id": "showcase-rehearsal-dinner",
+      "title": "Rehearsal Dinner",
+      "descriptions": ["Elegant design", "Soft romantic palette"],
+      "tags": ["minimal", "lux"],
+      "image": {
+        "type": "static",
+        "src": "img/wedding.png",
+        "alt": "Rehearsal dinner cookie set"
+      }
+    }
+  ]
+}
