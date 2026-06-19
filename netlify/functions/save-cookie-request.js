@@ -114,6 +114,7 @@ function normalizeCookieRequest(data) {
     request: {
       id: `request-${crypto.randomUUID()}`,
       createdAt: new Date().toISOString(),
+      status: "pending",
       name,
       email,
       phone,

@@ -18,6 +18,7 @@
   const dashboardPanel = document.getElementById("dashboardPanel");
   const siteBuilderPanel = document.getElementById("siteBuilderPanel");
   const cookieRequestsStatus = document.getElementById("cookieRequestsStatus");
+  const pendingRequestsGrid = document.getElementById("pendingRequestsGrid");
   const upcomingRequestsGrid = document.getElementById("upcomingRequestsGrid");
   const pastRequestsGrid = document.getElementById("pastRequestsGrid");
 
@@ -274,6 +275,13 @@
     return paragraphs.length === 3
       ? paragraphs
       : cloneAboutBakerParagraphs(defaultAboutBakerParagraphs);
+  }
+
+  function normalizeRequestStatus(value) {
+    const status = normalizeString(value).toLowerCase();
+    const allowedStatuses = ["pending", "accepted", "completed"];
+
+    return allowedStatuses.includes(status) ? status : "pending";
   }
 
   function aboutBakerToComparableString(paragraphs) {
@@ -1111,6 +1119,7 @@
     return {
       id: normalizeString(request?.id),
       createdAt: normalizeString(request?.createdAt),
+      status: normalizeRequestStatus(request?.status),
       name: normalizeString(request?.name),
       email: normalizeString(request?.email),
       phone: normalizeString(request?.phone),
@@ -1239,6 +1248,39 @@
     return wrap;
   }
 
+  function createRequestActions(request) {
+    const actions = document.createElement("div");
+    actions.className = "admin-request-actions";
+
+    if (request.status === "pending") {
+      const acceptBtn = document.createElement("button");
+      acceptBtn.type = "button";
+      acceptBtn.className = "btn btn-success admin-request-action-btn";
+      acceptBtn.textContent = "Accept";
+      acceptBtn.addEventListener("click", () => updateCookieRequestStatus(request.id, "accepted"));
+
+      const rejectBtn = document.createElement("button");
+      rejectBtn.type = "button";
+      rejectBtn.className = "btn btn-danger admin-request-action-btn";
+      rejectBtn.textContent = "Reject";
+      rejectBtn.addEventListener("click", () => deleteCookieRequest(request.id));
+
+      actions.append(acceptBtn, rejectBtn);
+    }
+
+    if (request.status === "accepted") {
+      const completeBtn = document.createElement("button");
+      completeBtn.type = "button";
+      completeBtn.className = "btn btn-success admin-request-action-btn";
+      completeBtn.textContent = "Order Complete";
+      completeBtn.addEventListener("click", () => updateCookieRequestStatus(request.id, "completed"));
+
+      actions.appendChild(completeBtn);
+    }
+
+    return actions;
+  }
+
   function createRequestCard(request) {
     const card = document.createElement("article");
     card.className = "admin-request-card";
@@ -1303,6 +1345,12 @@
       card.appendChild(imagesSection);
     }
 
+    const actions = createRequestActions(request);
+
+    if (actions.children.length) {
+      card.appendChild(actions);
+    }
+
     return card;
   }
 
@@ -1325,10 +1373,12 @@
   }
 
   function renderCookieRequests() {
-    const today = getTodayDateValue();
+    const pendingRequests = cookieRequests
+      .filter(request => request.status === "pending")
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
     const upcomingRequests = cookieRequests
-      .filter(request => request.eventDate >= today)
+      .filter(request => request.status === "accepted")
       .sort((a, b) => {
         const dateSort = a.eventDate.localeCompare(b.eventDate);
 
@@ -1340,7 +1390,7 @@
       });
 
     const pastRequests = cookieRequests
-      .filter(request => request.eventDate < today)
+      .filter(request => request.status === "completed")
       .sort((a, b) => {
         const dateSort = b.eventDate.localeCompare(a.eventDate);
 
@@ -1351,8 +1401,9 @@
         return b.createdAt.localeCompare(a.createdAt);
       });
 
+    renderRequestGrid(pendingRequestsGrid, pendingRequests, "No pending cookie requests yet.");
     renderRequestGrid(upcomingRequestsGrid, upcomingRequests, "No upcoming cookie requests yet.");
-    renderRequestGrid(pastRequestsGrid, pastRequests, "No past cookie requests yet.");
+    renderRequestGrid(pastRequestsGrid, pastRequests, "No completed cookie requests yet.");
   }
 
   async function loadCookieRequests() {
@@ -1364,6 +1415,7 @@
       .filter(request =>
         request.id &&
         request.createdAt &&
+        request.status &&
         request.name &&
         request.email &&
         request.eventDate &&
@@ -1385,6 +1437,49 @@
       cookieRequests = [];
       renderCookieRequests();
       setStatus(cookieRequestsStatus, err.message || "Could not load cookie requests.", "error");
+    }
+  }
+
+  async function updateCookieRequestStatus(id, status) {
+    setStatus(cookieRequestsStatus, "Updating request...");
+
+    try {
+      await fetchJson("/.netlify/functions/update-cookie-request-status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          id,
+          status
+        })
+      });
+
+      await refreshCookieRequests();
+    } catch (err) {
+      console.warn("Could not update cookie request.", err);
+      setStatus(cookieRequestsStatus, err.message || "Could not update cookie request.", "error");
+    }
+  }
+
+  async function deleteCookieRequest(id) {
+    setStatus(cookieRequestsStatus, "Deleting request...");
+
+    try {
+      await fetchJson("/.netlify/functions/delete-cookie-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          id
+        })
+      });
+
+      await refreshCookieRequests();
+    } catch (err) {
+      console.warn("Could not delete cookie request.", err);
+      setStatus(cookieRequestsStatus, err.message || "Could not delete cookie request.", "error");
     }
   }
 

@@ -96,7 +96,7 @@
             <p class="admin-eyebrow mb-2">Dashboard</p>
             <h2 class="h4 fw-semibold mb-1">Cookie Requests</h2>
             <p class="text-secondary mb-0">
-              View upcoming and past cookie requests submitted through the website.
+              Review new requests, manage upcoming orders, and track completed orders.
             </p>
           </div>
         </div>
@@ -105,8 +105,17 @@
 
         <div class="admin-dashboard-group">
           <div class="admin-dashboard-heading">
+            <h3 class="h5 fw-semibold mb-1">Pending Requests</h3>
+            <p class="text-secondary mb-0">New cookie requests waiting to be accepted or rejected.</p>
+          </div>
+
+          <div class="admin-request-grid" id="pendingRequestsGrid"></div>
+        </div>
+
+        <div class="admin-dashboard-group mt-4">
+          <div class="admin-dashboard-heading">
             <h3 class="h5 fw-semibold mb-1">Upcoming Requests</h3>
-            <p class="text-secondary mb-0">Requests with event dates today or later.</p>
+            <p class="text-secondary mb-0">Accepted cookie requests that are still in progress.</p>
           </div>
 
           <div class="admin-request-grid" id="upcomingRequestsGrid"></div>
@@ -115,7 +124,7 @@
         <div class="admin-dashboard-group mt-4">
           <div class="admin-dashboard-heading">
             <h3 class="h5 fw-semibold mb-1">Past Requests</h3>
-            <p class="text-secondary mb-0">Requests with event dates before today.</p>
+            <p class="text-secondary mb-0">Completed cookie requests.</p>
           </div>
 
           <div class="admin-request-grid" id="pastRequestsGrid"></div>
