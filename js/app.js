@@ -765,6 +765,7 @@
   const statusEl = document.getElementById("formStatus");
   const submitBtn = document.getElementById("submitBtn");
   const quantityInput = document.getElementById("quantity");
+  const phoneInput = document.getElementById("phone");
   const priceEstimate = document.getElementById("priceEstimate");
   const priceEstimateValue = document.getElementById("priceEstimateValue");
   const estimatedPriceInput = document.getElementById("estimatedPrice");
@@ -783,6 +784,20 @@
     statusEl.textContent = msg;
     statusEl.classList.toggle("text-danger", isError);
     statusEl.classList.toggle("text-success", !isError);
+  }
+
+  function formatPhoneNumber(value) {
+    const digits = String(value || "").replace(/\D/g, "").slice(0, 10);
+
+    if (digits.length <= 3) {
+      return digits;
+    }
+
+    if (digits.length <= 6) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    }
+
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   }
 
   function getSelectedImageFiles() {
@@ -991,6 +1006,10 @@
 
   quantityInput?.addEventListener("input", updatePriceEstimate);
 
+  phoneInput?.addEventListener("input", () => {
+    phoneInput.value = formatPhoneNumber(phoneInput.value);
+  });
+
   orderImagesInput?.addEventListener("change", () => {
     selectedImageFiles = Array.from(orderImagesInput.files || []);
     syncImageInputFiles();
@@ -1021,6 +1040,7 @@
     if (!form.checkValidity()) {
       form.classList.add("was-validated");
       setStatus("Please fix the highlighted fields.", true);
+      form.dataset.submitting = "false";
       return;
     }
 
