@@ -15,6 +15,12 @@
   const adminActions = document.getElementById("adminActions");
   const revertChangesBtn = document.getElementById("revertChangesBtn");
   const saveChangesBtn = document.getElementById("saveChangesBtn");
+  const adminTabButtons = document.querySelectorAll("[data-admin-tab]");
+  const dashboardPanel = document.getElementById("dashboardPanel");
+  const siteBuilderPanel = document.getElementById("siteBuilderPanel");
+  const cookieRequestsStatus = document.getElementById("cookieRequestsStatus");
+  const upcomingRequestsGrid = document.getElementById("upcomingRequestsGrid");
+  const pastRequestsGrid = document.getElementById("pastRequestsGrid");
 
   const defaultPricing = [
     { id: "set-6", quantity: 6, price: 18 },
@@ -177,6 +183,7 @@
 
   let originalAboutBakerParagraphs = [];
   let draftAboutBakerParagraphs = [];
+  let cookieRequests = [];
 
   function clonePricing(pricing) {
     return pricing.map(item => ({ ...item }));
@@ -194,6 +201,23 @@
     el.classList.toggle("is-success", type === "success");
   }
 
+  function setActiveAdminTab(tabName) {
+    adminTabButtons.forEach(button => {
+      const isActive = button.getAttribute("data-admin-tab") === tabName;
+
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+
+    if (dashboardPanel) {
+      dashboardPanel.hidden = tabName !== "dashboard";
+    }
+
+    if (siteBuilderPanel) {
+      siteBuilderPanel.hidden = tabName !== "site-builder";
+    }
+  }
+
   function showLoginView() {
     if (loginView) loginView.hidden = false;
     if (editorView) editorView.hidden = true;
@@ -208,6 +232,7 @@
     if (editorView) editorView.hidden = false;
     if (adminUser) adminUser.textContent = username ? `Signed in as ${username}` : "";
     setStatus(loginStatus, "");
+    setActiveAdminTab("dashboard");
   }
 
   function normalizeString(value) {
@@ -1082,6 +1107,289 @@
     markInvalidAboutBakerInputs();
   }
 
+  function normalizeCookieRequest(request) {
+    const images = Array.isArray(request?.images) ? request.images : [];
+
+    return {
+      id: normalizeString(request?.id),
+      createdAt: normalizeString(request?.createdAt),
+      name: normalizeString(request?.name),
+      email: normalizeString(request?.email),
+      phone: normalizeString(request?.phone),
+      eventDate: normalizeString(request?.eventDate),
+      quantity: Number.parseInt(request?.quantity, 10),
+      estimatedPrice: normalizeString(request?.estimatedPrice),
+      theme: normalizeString(request?.theme),
+      inspo: normalizeString(request?.inspo),
+      details: normalizeString(request?.details),
+      images: images
+        .map(image => ({
+          fileName: normalizeString(image.fileName),
+          url: normalizeString(image.url),
+          contentType: normalizeString(image.contentType)
+        }))
+        .filter(image => image.fileName && image.url)
+    };
+  }
+
+  function getTodayDateValue() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  }
+
+  function formatDateValue(dateValue) {
+    const parts = normalizeString(dateValue).split("-").map(Number);
+
+    if (parts.length !== 3 || parts.some(part => !Number.isInteger(part))) {
+      return dateValue || "(not provided)";
+    }
+
+    const date = new Date(parts[0], parts[1] - 1, parts[2]);
+
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    });
+  }
+
+  function formatSubmittedDate(value) {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return value || "(not provided)";
+    }
+
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    });
+  }
+
+  function createRequestDetail(label, value) {
+    const detail = document.createElement("div");
+    detail.className = "admin-request-detail";
+
+    const labelEl = document.createElement("div");
+    labelEl.className = "admin-request-label";
+    labelEl.textContent = label;
+
+    const valueEl = document.createElement("div");
+    valueEl.className = "admin-request-value";
+    valueEl.textContent = value || "(not provided)";
+
+    detail.append(labelEl, valueEl);
+
+    return detail;
+  }
+
+  function createRequestLinkDetail(label, value) {
+    const detail = document.createElement("div");
+    detail.className = "admin-request-detail";
+
+    const labelEl = document.createElement("div");
+    labelEl.className = "admin-request-label";
+    labelEl.textContent = label;
+
+    const valueEl = document.createElement("div");
+    valueEl.className = "admin-request-value";
+
+    if (value) {
+      const link = document.createElement("a");
+      link.href = value;
+      link.target = "_blank";
+      link.rel = "noreferrer";
+      link.textContent = value;
+      valueEl.appendChild(link);
+    } else {
+      valueEl.textContent = "(not provided)";
+    }
+
+    detail.append(labelEl, valueEl);
+
+    return detail;
+  }
+
+  function createRequestImages(images) {
+    const wrap = document.createElement("div");
+    wrap.className = "admin-request-images";
+
+    images.forEach(image => {
+      const link = document.createElement("a");
+      link.className = "admin-request-image-link";
+      link.href = image.url;
+      link.target = "_blank";
+      link.rel = "noreferrer";
+      link.title = image.fileName;
+
+      const img = document.createElement("img");
+      img.src = image.url;
+      img.alt = image.fileName;
+      img.loading = "lazy";
+
+      link.appendChild(img);
+      wrap.appendChild(link);
+    });
+
+    return wrap;
+  }
+
+  function createRequestCard(request) {
+    const card = document.createElement("article");
+    card.className = "admin-request-card";
+
+    const header = document.createElement("div");
+    header.className = "admin-request-card-header";
+
+    const titleWrap = document.createElement("div");
+
+    const title = document.createElement("h4");
+    title.className = "admin-request-card-title";
+    title.textContent = request.name;
+
+    const submitted = document.createElement("div");
+    submitted.className = "text-secondary small";
+    submitted.textContent = `Submitted ${formatSubmittedDate(request.createdAt)}`;
+
+    titleWrap.append(title, submitted);
+
+    const date = document.createElement("div");
+    date.className = "admin-request-card-date";
+    date.textContent = formatDateValue(request.eventDate);
+
+    header.append(titleWrap, date);
+
+    const details = document.createElement("div");
+    details.className = "admin-request-details";
+
+    details.append(
+      createRequestDetail("Email", request.email),
+      createRequestDetail("Phone", request.phone),
+      createRequestDetail("Quantity", Number.isInteger(request.quantity) ? String(request.quantity) : ""),
+      createRequestDetail("Estimated Price", request.estimatedPrice),
+      createRequestDetail("Theme", request.theme),
+      createRequestLinkDetail("Inspiration Link", request.inspo)
+    );
+
+    const message = document.createElement("div");
+    message.className = "admin-request-message";
+
+    const messageLabel = document.createElement("div");
+    messageLabel.className = "admin-request-label";
+    messageLabel.textContent = "Details";
+
+    const messageValue = document.createElement("div");
+    messageValue.className = "admin-request-value";
+    messageValue.textContent = request.details || "(not provided)";
+
+    message.append(messageLabel, messageValue);
+
+    card.append(header, details, message);
+
+    if (request.images.length) {
+      const imagesSection = document.createElement("div");
+      imagesSection.className = "admin-request-message";
+
+      const imagesLabel = document.createElement("div");
+      imagesLabel.className = "admin-request-label";
+      imagesLabel.textContent = "Inspiration Images";
+
+      imagesSection.append(imagesLabel, createRequestImages(request.images));
+      card.appendChild(imagesSection);
+    }
+
+    return card;
+  }
+
+  function renderRequestGrid(grid, requests, emptyMessage) {
+    if (!grid) return;
+
+    grid.innerHTML = "";
+
+    if (!requests.length) {
+      const empty = document.createElement("div");
+      empty.className = "admin-request-empty";
+      empty.textContent = emptyMessage;
+      grid.appendChild(empty);
+      return;
+    }
+
+    requests.forEach(request => {
+      grid.appendChild(createRequestCard(request));
+    });
+  }
+
+  function renderCookieRequests() {
+    const today = getTodayDateValue();
+
+    const upcomingRequests = cookieRequests
+      .filter(request => request.eventDate >= today)
+      .sort((a, b) => {
+        const dateSort = a.eventDate.localeCompare(b.eventDate);
+
+        if (dateSort !== 0) {
+          return dateSort;
+        }
+
+        return b.createdAt.localeCompare(a.createdAt);
+      });
+
+    const pastRequests = cookieRequests
+      .filter(request => request.eventDate < today)
+      .sort((a, b) => {
+        const dateSort = b.eventDate.localeCompare(a.eventDate);
+
+        if (dateSort !== 0) {
+          return dateSort;
+        }
+
+        return b.createdAt.localeCompare(a.createdAt);
+      });
+
+    renderRequestGrid(upcomingRequestsGrid, upcomingRequests, "No upcoming cookie requests yet.");
+    renderRequestGrid(pastRequestsGrid, pastRequests, "No past cookie requests yet.");
+  }
+
+  async function loadCookieRequests() {
+    const data = await fetchJson("/.netlify/functions/get-cookie-requests");
+    const requests = Array.isArray(data?.requests) ? data.requests : [];
+
+    return requests
+      .map(normalizeCookieRequest)
+      .filter(request =>
+        request.id &&
+        request.createdAt &&
+        request.name &&
+        request.email &&
+        request.eventDate &&
+        Number.isInteger(request.quantity) &&
+        request.theme &&
+        request.details
+      );
+  }
+
+  async function refreshCookieRequests() {
+    setStatus(cookieRequestsStatus, "Loading requests...");
+
+    try {
+      cookieRequests = await loadCookieRequests();
+      renderCookieRequests();
+      setStatus(cookieRequestsStatus, "");
+    } catch (err) {
+      console.warn("Could not load cookie requests.", err);
+      cookieRequests = [];
+      renderCookieRequests();
+      setStatus(cookieRequestsStatus, err.message || "Could not load cookie requests.", "error");
+    }
+  }
+
   async function fetchJson(url, options = {}) {
     const response = await fetch(url, {
       credentials: "same-origin",
@@ -1220,6 +1528,8 @@
     setStatus(editorStatus, "");
     setStatus(showcaseStatus, "");
     setStatus(aboutBakerStatus, "");
+
+    await refreshCookieRequests();
   }
 
   async function checkSession() {
@@ -1295,6 +1605,9 @@
     pendingShowcaseImages = {};
     originalAboutBakerParagraphs = [];
     draftAboutBakerParagraphs = [];
+    cookieRequests = [];
+    renderCookieRequests();
+    setStatus(cookieRequestsStatus, "");
     showLoginView();
   });
 
@@ -1537,6 +1850,20 @@
       if (saveChangesBtn) saveChangesBtn.disabled = false;
       if (revertChangesBtn) revertChangesBtn.disabled = false;
     }
+  });
+
+  adminTabButtons.forEach(button => {
+    button.addEventListener("click", () => {
+      const tabName = button.getAttribute("data-admin-tab");
+
+      if (tabName) {
+        setActiveAdminTab(tabName);
+      }
+
+      if (tabName === "dashboard") {
+        refreshCookieRequests();
+      }
+    });
   });
 
   checkSession();

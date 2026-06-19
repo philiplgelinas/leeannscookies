@@ -764,7 +764,6 @@
   const form = document.getElementById("cookieRequestForm");
   const statusEl = document.getElementById("formStatus");
   const submitBtn = document.getElementById("submitBtn");
-  const mailtoBtn = document.getElementById("mailtoBtn");
   const quantityInput = document.getElementById("quantity");
   const priceEstimate = document.getElementById("priceEstimate");
   const priceEstimateValue = document.getElementById("priceEstimateValue");
@@ -773,23 +772,11 @@
   const attachmentList = document.getElementById("attachmentList");
   const orderImagesFeedback = document.getElementById("orderImagesFeedback");
 
-  const destinationEmail = "leeannscookiesnj@gmail.com";
   const maxImageCount = 3;
   const maxImageSizeBytes = 5 * 1024 * 1024;
-  // EmailJS Free allows requests up to 50 KB total. Keep this lower to leave room for form text/overhead.
-  // If the EmailJS account is upgraded, raise this value to match the paid plan attachment limit.
-  const maxEmailJSTotalAttachmentBytes = 45 * 1024;
   const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
   const allowedImageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
   let selectedImageFiles = [];
-
-  // ===== EmailJS CONFIG =====
-  // 1) EmailJS dashboard -> Email Services -> copy your Service ID
-  // 2) EmailJS dashboard -> Email Templates -> create/copy Template ID
-  // 3) EmailJS dashboard -> Account -> copy Public Key
-  const EMAILJS_PUBLIC_KEY = "1CIxr9NPrrsN0AYgO";
-  const EMAILJS_SERVICE_ID = "service_x6u1c8k";
-  const EMAILJS_TEMPLATE_ID = "template_en8radw";
 
   function setStatus(msg, isError = false) {
     if (!statusEl) return;
@@ -813,7 +800,7 @@
   function removeImageAttachment(indexToRemove) {
     selectedImageFiles = selectedImageFiles.filter((_, index) => index !== indexToRemove);
     syncImageInputFiles();
-    validateImageAttachments({ enforceEmailJSLimit: false });
+    validateImageAttachments();
     renderAttachmentList();
   }
 
@@ -823,10 +810,27 @@
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
+  function getImageContentType(file) {
+    if (allowedImageTypes.includes(file.type)) {
+      return file.type;
+    }
+
+    const fileName = file.name.toLowerCase();
+
+    if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) return "image/jpeg";
+    if (fileName.endsWith(".png")) return "image/png";
+    if (fileName.endsWith(".webp")) return "image/webp";
+    if (fileName.endsWith(".heic")) return "image/heic";
+    if (fileName.endsWith(".heif")) return "image/heif";
+
+    return "";
+  }
+
   function isAllowedImageFile(file) {
     const fileName = file.name.toLowerCase();
-    const hasAllowedType = allowedImageTypes.includes(file.type);
+    const hasAllowedType = Boolean(getImageContentType(file));
     const hasAllowedExtension = allowedImageExtensions.some(ext => fileName.endsWith(ext));
+
     return hasAllowedType || hasAllowedExtension;
   }
 
@@ -836,7 +840,7 @@
     if (orderImagesFeedback && message) orderImagesFeedback.textContent = message;
   }
 
-  function validateImageAttachments({ enforceEmailJSLimit = false } = {}) {
+  function validateImageAttachments() {
     const files = getSelectedImageFiles();
     setImageAttachmentValidity("");
 
@@ -855,16 +859,6 @@
     if (oversized) {
       setImageAttachmentValidity(`${oversized.name} is too large. Each image must be 5 MB or smaller.`);
       return false;
-    }
-
-    if (enforceEmailJSLimit) {
-      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-      if (totalSize > maxEmailJSTotalAttachmentBytes) {
-        setImageAttachmentValidity(
-          `Selected images total ${formatBytes(totalSize)}, which is above the website upload limit of ${formatBytes(maxEmailJSTotalAttachmentBytes)}. Please remove/compress images, or use the mail app button and attach them manually.`
-        );
-        return false;
-      }
     }
 
     return true;
@@ -906,45 +900,93 @@
     });
   }
 
-  function buildMailto(formData, fileNames = []) {
-    const subject = `Cookie Request - ${formData.name} (${formData.eventDate})`;
-    const bodyLines = [
-      `Name: ${formData.name}`,
-      `Email: ${formData.email}`,
-      `Event Date: ${formData.eventDate}`,
-      `Quantity: ${formData.quantity}`,
-      `Estimated Price: ${formData.estimatedPrice || "(not calculated)"}`,
-      `Theme/Occasion: ${formData.theme}`,
-      `Inspiration Link: ${formData.inspo || "(none)"}`,
-      `Inspiration Images: ${fileNames.length ? `${fileNames.join(", ")} (please attach manually if using the mail app)` : "(none)"}`,
-      ``,
-      `Details:`,
-      `${formData.details}`,
-      ``,
-      `Sent from LeeAnn’s Cookies website`
-    ];
-    const body = encodeURIComponent(bodyLines.join("\n"));
-    return `mailto:${destinationEmail}?subject=${encodeURIComponent(subject)}&body=${body}`;
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Could not read selected image."));
+
+      reader.readAsDataURL(file);
+    });
   }
 
-  function canSendViaEmailJS() {
-    return (
-      window.emailjs &&
-      EMAILJS_PUBLIC_KEY &&
-      EMAILJS_SERVICE_ID &&
-      EMAILJS_TEMPLATE_ID &&
-      !EMAILJS_PUBLIC_KEY.includes("PASTE_") &&
-      !EMAILJS_SERVICE_ID.includes("PASTE_") &&
-      !EMAILJS_TEMPLATE_ID.includes("PASTE_")
-    );
-  }
+  async function fetchJson(url, options = {}) {
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        ...(options.headers || {})
+      },
+      ...options
+    });
 
-  function initEmailJSOnce() {
-    // EmailJS init (v4 style)
-    if (!window.__emailjs_inited) {
-      emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
-      window.__emailjs_inited = true;
+    let data = {};
+
+    try {
+      data = await response.json();
+    } catch (err) {
+      data = {};
     }
+
+    if (!response.ok) {
+      throw new Error(data.error || "Request failed.");
+    }
+
+    return data;
+  }
+
+  async function uploadCookieRequestImage(file) {
+    const dataBase64 = await readFileAsDataUrl(file);
+    const contentType = getImageContentType(file);
+
+    if (!contentType) {
+      throw new Error(`Unsupported image type for ${file.name}.`);
+    }
+
+    const data = await fetchJson("/.netlify/functions/save-cookie-request-image", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        fileName: file.name,
+        contentType,
+        dataBase64
+      })
+    });
+
+    if (!data.image) {
+      throw new Error("Image upload failed.");
+    }
+
+    return data.image;
+  }
+
+  async function uploadCookieRequestImages() {
+    const uploadedImages = [];
+
+    for (const file of getSelectedImageFiles()) {
+      uploadedImages.push(await uploadCookieRequestImage(file));
+    }
+
+    return uploadedImages;
+  }
+
+  function buildCookieRequestPayload(images) {
+    const values = Object.fromEntries(new FormData(form).entries());
+
+    return {
+      name: normalizeString(values.name),
+      email: normalizeString(values.email),
+      phone: normalizeString(values.phone),
+      eventDate: normalizeString(values.eventDate),
+      quantity: normalizeString(values.quantity),
+      estimatedPrice: normalizeString(values.estimatedPrice),
+      theme: normalizeString(values.theme),
+      inspo: normalizeString(values.inspo),
+      details: normalizeString(values.details),
+      images
+    };
   }
 
   quantityInput?.addEventListener("input", updatePriceEstimate);
@@ -955,27 +997,6 @@
     validateImageAttachments();
     renderAttachmentList();
   });
-
-  // Mailto button always available, but browsers cannot attach local files to mailto links.
-  if (mailtoBtn) {
-    mailtoBtn.addEventListener("click", () => {
-      if (!form) return;
-
-      updatePriceEstimate();
-      validateImageAttachments({ enforceEmailJSLimit: false });
-      renderAttachmentList();
-
-      if (!form.checkValidity()) {
-        form.classList.add("was-validated");
-        setStatus("Please fix the highlighted fields before opening your email app.", true);
-        return;
-      }
-
-      const values = Object.fromEntries(new FormData(form).entries());
-      const fileNames = getSelectedImageFiles().map(file => file.name);
-      window.location.href = buildMailto(values, fileNames);
-    });
-  }
 
   initShowcase();
   initPricing();
@@ -988,8 +1009,7 @@
     setStatus("");
     updatePriceEstimate();
 
-    const sendViaEmailJS = canSendViaEmailJS();
-    validateImageAttachments({ enforceEmailJSLimit: sendViaEmailJS });
+    validateImageAttachments();
     renderAttachmentList();
 
     if (!form.checkValidity()) {
@@ -1000,37 +1020,30 @@
 
     try {
       submitBtn && (submitBtn.disabled = true);
-      setStatus("Sending...");
+      setStatus("Submitting request...");
 
-      if (sendViaEmailJS) {
-        initEmailJSOnce();
+      const uploadedImages = await uploadCookieRequestImages();
+      const requestPayload = buildCookieRequestPayload(uploadedImages);
 
-        await emailjs.sendForm(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, form);
+      await fetchJson("/.netlify/functions/save-cookie-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(requestPayload)
+      });
 
-        setStatus("Request sent! We’ll reply soon.");
-        form.reset();
-        form.classList.remove("was-validated");
-        selectedImageFiles = [];
-        syncImageInputFiles();
-        setImageAttachmentValidity("");
-        renderAttachmentList();
-        updatePriceEstimate();
-        return;
-      }
-
-      setStatus("Email sending isn’t configured yet—opening your email app...");
-      const values = Object.fromEntries(new FormData(form).entries());
-      const fileNames = getSelectedImageFiles().map(file => file.name);
-      window.location.href = buildMailto(values, fileNames);
-
+      setStatus("Request sent! We’ll reply soon.");
+      form.reset();
+      form.classList.remove("was-validated");
+      selectedImageFiles = [];
+      syncImageInputFiles();
+      setImageAttachmentValidity("");
+      renderAttachmentList();
+      updatePriceEstimate();
     } catch (err) {
       console.error(err);
-      const errorText = `${err?.status || ""} ${err?.text || err?.message || ""}`;
-      if (errorText.includes("413") || errorText.toLowerCase().includes("content too large")) {
-        setStatus("The selected images are too large for website sending. Please remove/compress them, or use the email button and attach them manually.", true);
-      } else {
-        setStatus("Couldn’t send right now. Please use the email button instead.", true);
-      }
+      setStatus(err.message || "Couldn’t submit your request right now. Please try again.", true);
     } finally {
       submitBtn && (submitBtn.disabled = false);
     }

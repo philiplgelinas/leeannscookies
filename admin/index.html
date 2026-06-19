@@ -65,73 +65,117 @@
 
   <!-- Admin View -->
   <section class="admin-editor-view" id="editorView" hidden>
-    <header class="admin-header">
+    <div class="admin-editor-topbar">
       <div>
-        <p class="admin-eyebrow mb-1">Admin</p>
-        <h1 class="h3 fw-semibold mb-0">Manage LeeAnn’s Cookies</h1>
+        <p class="admin-eyebrow mb-2">Admin</p>
+        <h1 class="h3 fw-semibold mb-0">LeeAnn’s Cookies Admin</h1>
+        <p class="text-secondary mb-0" id="adminUser"></p>
       </div>
 
-      <div class="d-flex align-items-center gap-3">
-        <span class="text-secondary small" id="adminUser"></span>
-        <button class="btn btn-outline-dark" id="logoutBtn" type="button">
-          Logout
+      <button class="btn btn-outline-dark" id="logoutBtn" type="button">
+        Log Out
+      </button>
+    </div>
+
+    <div class="admin-tabs" role="tablist" aria-label="Admin sections">
+      <button class="admin-tab active" id="dashboardTab" type="button" data-admin-tab="dashboard" role="tab" aria-selected="true" aria-controls="dashboardPanel">
+        Dashboard
+      </button>
+
+      <button class="admin-tab" id="siteBuilderTab" type="button" data-admin-tab="site-builder" role="tab" aria-selected="false" aria-controls="siteBuilderPanel">
+        Site Builder
+      </button>
+    </div>
+
+    <div class="admin-tab-panel" id="dashboardPanel" role="tabpanel" aria-labelledby="dashboardTab">
+      <section class="admin-section">
+        <div class="admin-section-heading">
+          <div>
+            <p class="admin-eyebrow mb-2">Dashboard</p>
+            <h2 class="h4 fw-semibold mb-1">Cookie Requests</h2>
+            <p class="text-secondary mb-0">
+              View upcoming and past cookie requests submitted through the website.
+            </p>
+          </div>
+        </div>
+
+        <div class="admin-status mb-3" id="cookieRequestsStatus" role="status" aria-live="polite"></div>
+
+        <div class="admin-dashboard-group">
+          <div class="admin-dashboard-heading">
+            <h3 class="h5 fw-semibold mb-1">Upcoming Requests</h3>
+            <p class="text-secondary mb-0">Requests with event dates today or later.</p>
+          </div>
+
+          <div class="admin-request-grid" id="upcomingRequestsGrid"></div>
+        </div>
+
+        <div class="admin-dashboard-group mt-4">
+          <div class="admin-dashboard-heading">
+            <h3 class="h5 fw-semibold mb-1">Past Requests</h3>
+            <p class="text-secondary mb-0">Requests with event dates before today.</p>
+          </div>
+
+          <div class="admin-request-grid" id="pastRequestsGrid"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="admin-tab-panel" id="siteBuilderPanel" role="tabpanel" aria-labelledby="siteBuilderTab" hidden>
+      <section class="admin-section">
+        <div class="admin-section-heading">
+          <div>
+            <p class="admin-eyebrow mb-2">Showcase</p>
+            <h2 class="h4 fw-semibold mb-1">Past Work</h2>
+            <p class="text-secondary mb-0">
+              Add, update, and delete showcase cards shown on the public website.
+            </p>
+          </div>
+        </div>
+
+        <div class="admin-showcase-grid" id="adminShowcaseGrid"></div>
+
+        <div class="admin-status mt-3" id="showcaseStatus" role="status" aria-live="polite"></div>
+      </section>
+
+      <section class="admin-section mt-4">
+        <div class="admin-section-heading">
+          <div>
+            <p class="admin-eyebrow mb-2">Pricing</p>
+            <h2 class="h4 fw-semibold mb-1">Cookie Sets</h2>
+            <p class="text-secondary mb-0">Update set quantities and prices shown on the public website.</p>
+          </div>
+        </div>
+
+        <div class="admin-pricing-grid" id="adminPricingGrid"></div>
+
+        <div class="admin-status mt-3" id="editorStatus" role="status" aria-live="polite"></div>
+      </section>
+
+      <section class="admin-section mt-4">
+        <div class="admin-section-heading">
+          <div>
+            <p class="admin-eyebrow mb-2">About</p>
+            <h2 class="h4 fw-semibold mb-1">About the Baker</h2>
+            <p class="text-secondary mb-0">
+              Edit the three paragraphs shown in the About the Baker section on the public website.
+            </p>
+          </div>
+        </div>
+
+        <div class="admin-about-baker-fields" id="adminAboutBakerFields"></div>
+
+        <div class="admin-status mt-3" id="aboutBakerStatus" role="status" aria-live="polite"></div>
+      </section>
+
+      <div class="admin-actions" id="adminActions" hidden>
+        <button class="btn btn-outline-dark btn-lg" id="revertChangesBtn" type="button">
+          Revert Changes
+        </button>
+        <button class="btn btn-dark btn-lg" id="saveChangesBtn" type="button">
+          Save Changes
         </button>
       </div>
-    </header>
-
-    <section class="admin-section">
-      <div class="admin-section-heading">
-        <div>
-          <p class="admin-eyebrow mb-2">Showcase</p>
-          <h2 class="h4 fw-semibold mb-1">Past Work</h2>
-          <p class="text-secondary mb-0">
-            Add, update, and delete showcase cards shown on the public website.
-          </p>
-        </div>
-      </div>
-
-      <div class="admin-showcase-grid" id="adminShowcaseGrid"></div>
-
-      <div class="admin-status mt-3" id="showcaseStatus" role="status" aria-live="polite"></div>
-    </section>
-
-    <section class="admin-section mt-4">
-      <div class="admin-section-heading">
-        <div>
-          <p class="admin-eyebrow mb-2">Pricing</p>
-          <h2 class="h4 fw-semibold mb-1">Cookie Sets</h2>
-          <p class="text-secondary mb-0">Update set quantities and prices shown on the public website.</p>
-        </div>
-      </div>
-
-      <div class="admin-pricing-grid" id="adminPricingGrid"></div>
-
-      <div class="admin-status mt-3" id="editorStatus" role="status" aria-live="polite"></div>
-    </section>
-
-    <section class="admin-section mt-4">
-      <div class="admin-section-heading">
-        <div>
-          <p class="admin-eyebrow mb-2">About</p>
-          <h2 class="h4 fw-semibold mb-1">About the Baker</h2>
-          <p class="text-secondary mb-0">
-            Edit the three paragraphs shown in the About the Baker section on the public website.
-          </p>
-        </div>
-      </div>
-
-      <div class="admin-about-baker-fields" id="adminAboutBakerFields"></div>
-
-      <div class="admin-status mt-3" id="aboutBakerStatus" role="status" aria-live="polite"></div>
-    </section>
-
-    <div class="admin-actions" id="adminActions" hidden>
-      <button class="btn btn-outline-dark btn-lg" id="revertChangesBtn" type="button">
-        Revert Changes
-      </button>
-      <button class="btn btn-dark btn-lg" id="saveChangesBtn" type="button">
-        Save Changes
-      </button>
     </div>
   </section>
 </main>
