@@ -55,6 +55,36 @@ function isValidEventDate(eventDate) {
   return /^\d{4}-\d{2}-\d{2}$/.test(eventDate);
 }
 
+async function sendNewCookieRequestNotification() {
+  const apiKey = process.env.RESEND_API_KEY;
+  const to = process.env.COOKIE_REQUEST_NOTIFICATION_EMAIL || "leeannscookiesnj@gmail.com";
+  const from = process.env.COOKIE_REQUEST_NOTIFICATION_FROM;
+
+  if (!apiKey || !from || !to) {
+    console.warn("Cookie request email notification is not fully configured.");
+    return;
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      from,
+      to,
+      subject: "New Cookie Request",
+      text: "You have a new cookie request!"
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Notification email failed: ${errorText}`);
+  }
+}
+
 function normalizeCookieRequest(data) {
   const name = normalizeString(data.name);
   const email = normalizeString(data.email).toLowerCase();
@@ -166,6 +196,12 @@ exports.handler = async (event) => {
     await store.setJSON("cookie-requests", {
       requests
     });
+
+    try {
+      await sendNewCookieRequestNotification();
+    } catch (err) {
+      console.error("Cookie request was saved, but notification email failed.", err);
+    }
 
     return jsonResponse(200, {
       success: true,
