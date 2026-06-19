@@ -1006,6 +1006,12 @@
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+
+    if (form.dataset.submitting === "true") {
+      return;
+    }
+
+    form.dataset.submitting = "true";
     setStatus("");
     updatePriceEstimate();
 
@@ -1045,6 +1051,7 @@
       console.error(err);
       setStatus(err.message || "Couldn’t submit your request right now. Please try again.", true);
     } finally {
+      form.dataset.submitting = "false";
       submitBtn && (submitBtn.disabled = false);
     }
   });
