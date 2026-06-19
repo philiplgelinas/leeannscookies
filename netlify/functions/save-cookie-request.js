@@ -136,8 +136,8 @@ function buildCookieRequestEmailText(request) {
     "Inspiration Images:",
     buildImageLinksText(request.images),
     "",
-    "View the request in the admin dashboard:",
-    getAbsoluteUrl("/admin")
+    "View in Dashboard:",
+    "https://leeannscookiesnj.com/admin/"
   ].join("\n");
 }
 
@@ -187,9 +187,14 @@ function buildCookieRequestEmailHtml(request) {
       <h3>Inspiration Images</h3>
       ${buildImageLinksHtml(request.images)}
 
-      <p>
-        <a href="${escapeHtml(getAbsoluteUrl("/admin"))}">Open admin dashboard</a>
-      </p>
+        <div style="margin-top: 28px;">
+          <a
+            href="https://leeannscookiesnj.com/admin/"
+            style="display: inline-block; padding: 12px 20px; background: #111111; color: #ffffff; text-decoration: none; border-radius: 999px; font-weight: bold;"
+          >
+          View in Dashboard
+        </a>
+      </div>
     </div>
   `;
 }
