@@ -44,7 +44,7 @@ function normalizeImages(images) {
       url: normalizeString(image.url)
     }))
     .filter(image => image.fileName && image.key && image.url)
-    .slice(0, 3);
+    .slice(0, 5);
 }
 
 function isValidEmail(email) {

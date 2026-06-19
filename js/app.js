@@ -772,7 +772,7 @@
   const attachmentList = document.getElementById("attachmentList");
   const orderImagesFeedback = document.getElementById("orderImagesFeedback");
 
-  const maxImageCount = 3;
+  const maxImageCount = 5;
   const maxImageSizeBytes = 5 * 1024 * 1024;
   const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
   const allowedImageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
