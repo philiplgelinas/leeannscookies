@@ -4,7 +4,6 @@
   const loginForm = document.getElementById("loginForm");
   const loginBtn = document.getElementById("loginBtn");
   const loginStatus = document.getElementById("loginStatus");
-  const adminUser = document.getElementById("adminUser");
   const logoutBtn = document.getElementById("logoutBtn");
   const adminPricingGrid = document.getElementById("adminPricingGrid");
   const adminShowcaseGrid = document.getElementById("adminShowcaseGrid");
@@ -230,7 +229,6 @@
   function showEditorView(username = "") {
     if (loginView) loginView.hidden = true;
     if (editorView) editorView.hidden = false;
-    if (adminUser) adminUser.textContent = username ? `Signed in as ${username}` : "";
     setStatus(loginStatus, "");
     setActiveAdminTab("dashboard");
   }
