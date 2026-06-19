@@ -216,6 +216,14 @@
                   <label class="form-label" for="quantity">Estimated quantity</label>
                   <input class="form-control form-control-lg" id="quantity" name="quantity" type="number" min="1" step="1" placeholder="e.g., 24" required />
                   <div class="invalid-feedback">Please enter a quantity (at least 1).</div>
+
+                  <div class="price-estimate mt-2" id="priceEstimate" hidden>
+                    <div class="price-estimate-label">Estimated price</div>
+                    <div class="price-estimate-value" id="priceEstimateValue">$0.00</div>
+                    <div class="price-estimate-note">Final pricing may vary based on design details.</div>
+                  </div>
+
+                  <input type="hidden" id="estimatedPrice" name="estimatedPrice" value="" />
                 </div>
 
                 <div class="col-12">

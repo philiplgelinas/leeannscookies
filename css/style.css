@@ -298,6 +298,33 @@ body.lightbox-open{
   }
 }
 
+/* Request form price estimate */
+.price-estimate{
+  padding: 12px 14px;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 16px;
+  background: rgba(0,0,0,0.04);
+}
+
+.price-estimate-label{
+  color: var(--muted-dark);
+  font-size: .78rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.price-estimate-value{
+  margin-top: 2px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.price-estimate-note{
+  margin-top: 2px;
+  color: var(--muted-dark);
+  font-size: .82rem;
+}
 
 /* Request form attachment preview */
 .attachment-list{

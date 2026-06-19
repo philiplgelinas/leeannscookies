@@ -516,6 +516,8 @@
     { id: "set-96", quantity: 96, price: 192 }
   ];
 
+  let currentPricing = [];
+
   function normalizePricingData(data) {
     const pricing = Array.isArray(data?.pricing) ? data.pricing : [];
 
@@ -526,6 +528,87 @@
         price: Number.parseInt(item.price, 10)
       }))
       .filter(item => Number.isInteger(item.quantity) && item.quantity > 0 && Number.isInteger(item.price) && item.price > 0);
+  }
+
+  function getSortedPricing(pricing) {
+    return [...pricing]
+      .map(item => ({
+        quantity: Number.parseInt(item.quantity, 10),
+        price: Number.parseFloat(item.price)
+      }))
+      .filter(item =>
+        Number.isInteger(item.quantity) &&
+        item.quantity > 0 &&
+        Number.isFinite(item.price) &&
+        item.price > 0
+      )
+      .sort((a, b) => a.quantity - b.quantity);
+  }
+
+  function formatEstimatedPrice(price) {
+    return price.toLocaleString("en-US", {
+      style: "currency",
+      currency: "USD"
+    });
+  }
+
+  function calculateEstimatedPrice(quantity, pricing) {
+    const sortedPricing = getSortedPricing(pricing);
+
+    if (!Number.isInteger(quantity) || quantity <= 0 || !sortedPricing.length) {
+      return null;
+    }
+
+    const exactMatch = sortedPricing.find(item => item.quantity === quantity);
+
+    if (exactMatch) {
+      return exactMatch.price;
+    }
+
+    const smallestSet = sortedPricing[0];
+    const largestSet = sortedPricing[sortedPricing.length - 1];
+
+    if (quantity < smallestSet.quantity) {
+      return quantity * (smallestSet.price / smallestSet.quantity);
+    }
+
+    if (quantity > largestSet.quantity) {
+      return quantity * (largestSet.price / largestSet.quantity);
+    }
+
+    for (let i = 0; i < sortedPricing.length - 1; i++) {
+      const lowerSet = sortedPricing[i];
+      const higherSet = sortedPricing[i + 1];
+
+      if (quantity > lowerSet.quantity && quantity < higherSet.quantity) {
+        const extraCookies = quantity - lowerSet.quantity;
+        return lowerSet.price + extraCookies * (higherSet.price / higherSet.quantity);
+      }
+    }
+
+    return null;
+  }
+
+  function updatePriceEstimate() {
+    if (!quantityInput || !priceEstimate || !priceEstimateValue || !estimatedPriceInput) {
+      return;
+    }
+
+    const quantity = Number.parseInt(quantityInput.value, 10);
+    const estimatedPrice = calculateEstimatedPrice(quantity, currentPricing);
+
+    if (!Number.isFinite(estimatedPrice)) {
+      priceEstimate.hidden = true;
+      priceEstimateValue.textContent = "$0.00";
+      estimatedPriceInput.value = "";
+      return;
+    }
+
+    const formattedPrice = formatEstimatedPrice(estimatedPrice);
+
+    priceEstimate.hidden = false;
+    priceEstimateValue.textContent = formattedPrice;
+    estimatedPriceInput.value = formattedPrice;
   }
 
   async function fetchPricingData() {
@@ -605,10 +688,12 @@
   }
 
   async function initPricing() {
-    if (!pricingGrid) return;
-
     const pricing = await fetchPricingData();
+
+    currentPricing = getSortedPricing(pricing);
+
     renderPricingCards(pricing);
+    updatePriceEstimate();
   }
 
   // Showcase image lightbox
@@ -675,15 +760,15 @@
     }
   });
 
-  initShowcase();
-  initPricing();
-  initAboutBaker();
-
   // Request form
   const form = document.getElementById("cookieRequestForm");
   const statusEl = document.getElementById("formStatus");
   const submitBtn = document.getElementById("submitBtn");
   const mailtoBtn = document.getElementById("mailtoBtn");
+  const quantityInput = document.getElementById("quantity");
+  const priceEstimate = document.getElementById("priceEstimate");
+  const priceEstimateValue = document.getElementById("priceEstimateValue");
+  const estimatedPriceInput = document.getElementById("estimatedPrice");
   const orderImagesInput = document.getElementById("orderImages");
   const attachmentList = document.getElementById("attachmentList");
   const orderImagesFeedback = document.getElementById("orderImagesFeedback");
@@ -828,6 +913,7 @@
       `Email: ${formData.email}`,
       `Event Date: ${formData.eventDate}`,
       `Quantity: ${formData.quantity}`,
+      `Estimated Price: ${formData.estimatedPrice || "(not calculated)"}`,
       `Theme/Occasion: ${formData.theme}`,
       `Inspiration Link: ${formData.inspo || "(none)"}`,
       `Inspiration Images: ${fileNames.length ? `${fileNames.join(", ")} (please attach manually if using the mail app)` : "(none)"}`,
@@ -861,6 +947,8 @@
     }
   }
 
+  quantityInput?.addEventListener("input", updatePriceEstimate);
+
   orderImagesInput?.addEventListener("change", () => {
     selectedImageFiles = Array.from(orderImagesInput.files || []);
     syncImageInputFiles();
@@ -873,8 +961,10 @@
     mailtoBtn.addEventListener("click", () => {
       if (!form) return;
 
+      updatePriceEstimate();
       validateImageAttachments({ enforceEmailJSLimit: false });
       renderAttachmentList();
+
       if (!form.checkValidity()) {
         form.classList.add("was-validated");
         setStatus("Please fix the highlighted fields before opening your email app.", true);
@@ -887,11 +977,16 @@
     });
   }
 
+  initShowcase();
+  initPricing();
+  initAboutBaker();
+
   if (!form) return;
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     setStatus("");
+    updatePriceEstimate();
 
     const sendViaEmailJS = canSendViaEmailJS();
     validateImageAttachments({ enforceEmailJSLimit: sendViaEmailJS });
@@ -919,6 +1014,7 @@
         syncImageInputFiles();
         setImageAttachmentValidity("");
         renderAttachmentList();
+        updatePriceEstimate();
         return;
       }
 
