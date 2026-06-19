@@ -55,7 +55,146 @@ function isValidEventDate(eventDate) {
   return /^\d{4}-\d{2}-\d{2}$/.test(eventDate);
 }
 
-async function sendNewCookieRequestNotification() {
+function escapeHtml(value) {
+  return normalizeString(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function getAbsoluteUrl(value) {
+  const url = normalizeString(value);
+  const siteUrl = normalizeString(process.env.SITE_URL || "https://leeannscookiesnj.com").replace(/\/$/, "");
+
+  if (!url) {
+    return "";
+  }
+
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+
+  return `${siteUrl}${url.startsWith("/") ? url : `/${url}`}`;
+}
+
+function formatEmailValue(value) {
+  const normalizedValue = normalizeString(value);
+
+  return normalizedValue || "(not provided)";
+}
+
+function buildImageLinksText(images) {
+  if (!Array.isArray(images) || !images.length) {
+    return "(none)";
+  }
+
+  return images
+    .map((image, index) => {
+      const fileName = formatEmailValue(image.fileName || `Image ${index + 1}`);
+      const url = getAbsoluteUrl(image.url);
+
+      return `${index + 1}. ${fileName}: ${url}`;
+    })
+    .join("\n");
+}
+
+function buildImageLinksHtml(images) {
+  if (!Array.isArray(images) || !images.length) {
+    return "<p>(none)</p>";
+  }
+
+  const links = images
+    .map((image, index) => {
+      const fileName = escapeHtml(image.fileName || `Image ${index + 1}`);
+      const url = getAbsoluteUrl(image.url);
+
+      return `<li><a href="${escapeHtml(url)}">${fileName}</a></li>`;
+    })
+    .join("");
+
+  return `<ul>${links}</ul>`;
+}
+
+function buildCookieRequestEmailText(request) {
+  return [
+    "You have a new cookie request!",
+    "",
+    `Name: ${formatEmailValue(request.name)}`,
+    `Email: ${formatEmailValue(request.email)}`,
+    `Phone: ${formatEmailValue(request.phone)}`,
+    `Event Date: ${formatEmailValue(request.eventDate)}`,
+    `Quantity: ${formatEmailValue(request.quantity)}`,
+    `Estimated Price: ${formatEmailValue(request.estimatedPrice)}`,
+    `Theme: ${formatEmailValue(request.theme)}`,
+    `Inspiration Link: ${formatEmailValue(request.inspo)}`,
+    "",
+    "Details:",
+    formatEmailValue(request.details),
+    "",
+    "Inspiration Images:",
+    buildImageLinksText(request.images),
+    "",
+    "View the request in the admin dashboard:",
+    getAbsoluteUrl("/admin")
+  ].join("\n");
+}
+
+function buildCookieRequestEmailHtml(request) {
+  return `
+    <div style="font-family: Arial, sans-serif; color: #222; line-height: 1.5;">
+      <h2>You have a new cookie request!</h2>
+
+      <table style="border-collapse: collapse; width: 100%; max-width: 680px;">
+        <tr>
+          <td style="padding: 6px 12px 6px 0; font-weight: bold; vertical-align: top;">Name:</td>
+          <td style="padding: 6px 0;">${escapeHtml(formatEmailValue(request.name))}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 12px 6px 0; font-weight: bold; vertical-align: top;">Email:</td>
+          <td style="padding: 6px 0;">${escapeHtml(formatEmailValue(request.email))}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 12px 6px 0; font-weight: bold; vertical-align: top;">Phone:</td>
+          <td style="padding: 6px 0;">${escapeHtml(formatEmailValue(request.phone))}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 12px 6px 0; font-weight: bold; vertical-align: top;">Event Date:</td>
+          <td style="padding: 6px 0;">${escapeHtml(formatEmailValue(request.eventDate))}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 12px 6px 0; font-weight: bold; vertical-align: top;">Quantity:</td>
+          <td style="padding: 6px 0;">${escapeHtml(formatEmailValue(request.quantity))}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 12px 6px 0; font-weight: bold; vertical-align: top;">Estimated Price:</td>
+          <td style="padding: 6px 0;">${escapeHtml(formatEmailValue(request.estimatedPrice))}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 12px 6px 0; font-weight: bold; vertical-align: top;">Theme:</td>
+          <td style="padding: 6px 0;">${escapeHtml(formatEmailValue(request.theme))}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 12px 6px 0; font-weight: bold; vertical-align: top;">Inspiration Link:</td>
+          <td style="padding: 6px 0;">${escapeHtml(formatEmailValue(request.inspo))}</td>
+        </tr>
+      </table>
+
+      <h3>Details</h3>
+      <p style="white-space: pre-wrap;">${escapeHtml(formatEmailValue(request.details))}</p>
+
+      <h3>Inspiration Images</h3>
+      ${buildImageLinksHtml(request.images)}
+
+      <p>
+        <a href="${escapeHtml(getAbsoluteUrl("/admin"))}">Open admin dashboard</a>
+      </p>
+    </div>
+  `;
+}
+
+async function sendNewCookieRequestNotification(request) {
   const apiKey = process.env.RESEND_API_KEY;
   const to = process.env.COOKIE_REQUEST_NOTIFICATION_EMAIL || "leeannscookiesnj@gmail.com";
   const from = process.env.COOKIE_REQUEST_NOTIFICATION_FROM;
@@ -74,8 +213,10 @@ async function sendNewCookieRequestNotification() {
     body: JSON.stringify({
       from,
       to,
+      reply_to: request.email,
       subject: "New Cookie Request",
-      text: "You have a new cookie request!"
+      text: buildCookieRequestEmailText(request),
+      html: buildCookieRequestEmailHtml(request)
     })
   });
 
@@ -198,7 +339,7 @@ exports.handler = async (event) => {
     });
 
     try {
-      await sendNewCookieRequestNotification();
+      await sendNewCookieRequestNotification(normalized.request);
     } catch (err) {
       console.error("Cookie request was saved, but notification email failed.", err);
     }
