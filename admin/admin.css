@@ -101,6 +101,15 @@ body{
   backdrop-filter: blur(12px);
 }
 
+.admin-header > div:first-child{
+  padding-right: 28px;
+}
+
+#logoutBtn{
+  flex: 0 0 auto;
+  margin-left: 28px;
+}
+
 .admin-section{
   max-width: 1180px;
   margin: 0 auto;
@@ -348,6 +357,15 @@ body{
   .admin-actions .btn{
     flex: 1;
     min-width: 0;
+  }
+
+  .admin-header > div:first-child{
+    padding-right: 0;
+  }
+
+  #logoutBtn{
+    margin-left: 0;
+    margin-top: 8px;
   }
 }
 
