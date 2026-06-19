@@ -21,6 +21,7 @@
   const pendingRequestsGrid = document.getElementById("pendingRequestsGrid");
   const upcomingRequestsGrid = document.getElementById("upcomingRequestsGrid");
   const pastRequestsGrid = document.getElementById("pastRequestsGrid");
+  const totalEarned = document.getElementById("totalEarned");
 
   const defaultPricing = [
     { id: "set-6", quantity: 6, price: 18 },
@@ -1180,6 +1181,34 @@
     });
   }
 
+  function parseEstimatedPrice(value) {
+    const normalizedValue = normalizeString(value).replace(/[^0-9.]/g, "");
+    const parsedValue = Number.parseFloat(normalizedValue);
+
+    return Number.isFinite(parsedValue) ? parsedValue : 0;
+  }
+
+  function formatCurrency(value) {
+    return value.toLocaleString("en-US", {
+      style: "currency",
+      currency: "USD"
+    });
+  }
+
+  function updateTotalEarned(pastRequests) {
+    if (!totalEarned) return;
+
+    const valueEl = totalEarned.querySelector(".admin-total-earned-value");
+
+    if (!valueEl) return;
+
+    const total = pastRequests.reduce((sum, request) =>
+      sum + parseEstimatedPrice(request.estimatedPrice), 0
+    );
+
+    valueEl.textContent = formatCurrency(total);
+  }
+
   function createRequestDetail(label, value) {
     const detail = document.createElement("div");
     detail.className = "admin-request-detail";
@@ -1412,6 +1441,8 @@
 
         return b.createdAt.localeCompare(a.createdAt);
       });
+
+    updateTotalEarned(pastRequests);
 
     renderRequestGrid(pendingRequestsGrid, pendingRequests, "No pending cookie requests yet.");
     renderRequestGrid(upcomingRequestsGrid, upcomingRequests, "No upcoming cookie requests yet.");

@@ -347,6 +347,11 @@ body{
     align-items: flex-start;
   }
 
+  .admin-total-earned{
+    width: 100%;
+    text-align: left;
+  }
+
   .admin-pricing-item{
     flex: 1 1 calc(50% - 8px);
     min-width: 150px;
@@ -795,6 +800,30 @@ body{
 }
 
 /* Admin dashboard */
+.admin-total-earned{
+  min-width: 180px;
+  padding: 14px 18px;
+  border: 1px solid var(--admin-border);
+  border-radius: 18px;
+  background: rgba(255,255,255,0.86);
+  text-align: right;
+}
+
+.admin-total-earned-label{
+  color: var(--admin-muted);
+  font-size: .76rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.admin-total-earned-value{
+  margin-top: 2px;
+  color: var(--admin-text);
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
 .admin-dashboard-group{
   padding-top: 4px;
 }
