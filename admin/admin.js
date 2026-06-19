@@ -1272,10 +1272,20 @@
       const completeBtn = document.createElement("button");
       completeBtn.type = "button";
       completeBtn.className = "btn btn-success admin-request-action-btn";
-      completeBtn.textContent = "Order Complete";
+      completeBtn.textContent = "Complete";
       completeBtn.addEventListener("click", () => updateCookieRequestStatus(request.id, "completed"));
 
       actions.appendChild(completeBtn);
+    }
+
+    if (request.status === "completed") {
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "btn btn-danger admin-request-action-btn";
+      deleteBtn.textContent = "Delete";
+      deleteBtn.addEventListener("click", () => deleteCookieRequest(request.id));
+
+      actions.appendChild(deleteBtn);
     }
 
     return actions;
