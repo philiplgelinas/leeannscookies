@@ -1312,7 +1312,9 @@
 
     const date = document.createElement("div");
     date.className = "admin-request-card-date";
-    date.textContent = formatDateValue(request.eventDate);
+    date.textContent = request.status === "accepted"
+      ? `Due ${formatDateValue(request.eventDate)}`
+      : formatDateValue(request.eventDate);
 
     header.append(titleWrap, date);
 
