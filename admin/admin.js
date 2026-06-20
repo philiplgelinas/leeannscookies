@@ -703,8 +703,8 @@
 
     reorderControls.append(
       dragHandle,
-      createMoveButton(`Move set of ${item.quantity} up`, "bi bi-chevron-up", () => movePricingCard(item.id, "up"), itemIndex <= 0),
-      createMoveButton(`Move set of ${item.quantity} down`, "bi bi-chevron-down", () => movePricingCard(item.id, "down"), itemIndex >= draftPricing.length - 1)
+      createMoveButton(`Move set of ${item.quantity} left`, "bi bi-chevron-left", () => movePricingCard(item.id, "up"), itemIndex <= 0),
+      createMoveButton(`Move set of ${item.quantity} right`, "bi bi-chevron-right", () => movePricingCard(item.id, "down"), itemIndex >= draftPricing.length - 1)
     );
 
     const deleteBtn = document.createElement("button");
@@ -1056,8 +1056,8 @@
 
     reorderControls.append(
       dragHandle,
-      createMoveButton(`Move ${item.title || "showcase card"} up`, "bi bi-chevron-up", () => moveShowcaseCard(item.id, "up"), itemIndex <= 0),
-      createMoveButton(`Move ${item.title || "showcase card"} down`, "bi bi-chevron-down", () => moveShowcaseCard(item.id, "down"), itemIndex >= draftShowcase.length - 1)
+      createMoveButton(`Move ${item.title || "showcase card"} left`, "bi bi-chevron-left", () => moveShowcaseCard(item.id, "up"), itemIndex <= 0),
+      createMoveButton(`Move ${item.title || "showcase card"} right`, "bi bi-chevron-right", () => moveShowcaseCard(item.id, "down"), itemIndex >= draftShowcase.length - 1)
     );
 
     const deleteBtn = document.createElement("button");
