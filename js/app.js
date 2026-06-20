@@ -109,7 +109,15 @@
   const featuredSetTitle = document.getElementById("featuredSetTitle");
   const featuredSetDescription = document.getElementById("featuredSetDescription");
   const filterButtons = document.querySelectorAll("[data-filter]");
+  const showcaseGalleryControls = document.getElementById("showcaseGalleryControls");
+  const showcasePrevBtn = document.getElementById("showcasePrevBtn");
+  const showcaseNextBtn = document.getElementById("showcaseNextBtn");
+  const showcaseGalleryStatus = document.getElementById("showcaseGalleryStatus");
+  const showcaseGalleryDots = document.getElementById("showcaseGalleryDots");
+
+  const showcaseItemsPerPage = 9;
   let currentShowcaseFilter = "all";
+  let showcaseCurrentPage = 1;
 
   const defaultShowcase = [
     {
@@ -434,16 +442,79 @@
     activeBtn.classList.add("active");
   }
 
+  function getFilteredShowcaseItems() {
+    const items = Array.from(document.querySelectorAll(".showcase-item"));
+
+    return items.filter(item => {
+      const tags = (item.getAttribute("data-tags") || "").split(" ").filter(Boolean);
+
+      return currentShowcaseFilter === "all" ? true : tags.includes(currentShowcaseFilter);
+    });
+  }
+
+  function renderShowcaseGalleryDots(totalPages) {
+    if (!showcaseGalleryDots) return;
+
+    showcaseGalleryDots.innerHTML = "";
+
+    for (let page = 1; page <= totalPages; page++) {
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = "showcase-gallery-dot";
+      dot.classList.toggle("active", page === showcaseCurrentPage);
+      dot.setAttribute("aria-label", `Go to showcase page ${page}`);
+      dot.addEventListener("click", () => {
+        showcaseCurrentPage = page;
+        updateShowcaseGallery();
+      });
+
+      showcaseGalleryDots.appendChild(dot);
+    }
+  }
+
+  function updateShowcaseGallery() {
+    const allItems = Array.from(document.querySelectorAll(".showcase-item"));
+    const filteredItems = getFilteredShowcaseItems();
+    const totalPages = Math.max(1, Math.ceil(filteredItems.length / showcaseItemsPerPage));
+
+    if (showcaseCurrentPage > totalPages) {
+      showcaseCurrentPage = totalPages;
+    }
+
+    const startIndex = (showcaseCurrentPage - 1) * showcaseItemsPerPage;
+    const endIndex = startIndex + showcaseItemsPerPage;
+
+    allItems.forEach(item => {
+      item.hidden = true;
+    });
+
+    filteredItems.forEach((item, index) => {
+      item.hidden = index < startIndex || index >= endIndex;
+    });
+
+    if (showcaseGalleryControls) {
+      showcaseGalleryControls.hidden = filteredItems.length <= showcaseItemsPerPage;
+    }
+
+    if (showcasePrevBtn) {
+      showcasePrevBtn.disabled = showcaseCurrentPage <= 1;
+    }
+
+    if (showcaseNextBtn) {
+      showcaseNextBtn.disabled = showcaseCurrentPage >= totalPages;
+    }
+
+    if (showcaseGalleryStatus) {
+      showcaseGalleryStatus.textContent = `Page ${showcaseCurrentPage} of ${totalPages}`;
+    }
+
+    renderShowcaseGalleryDots(totalPages);
+  }
+
   function filterShowcase(tag) {
     currentShowcaseFilter = tag;
-
-    const items = document.querySelectorAll(".showcase-item");
-
-    items.forEach(item => {
-      const tags = (item.getAttribute("data-tags") || "").split(" ").filter(Boolean);
-      const show = tag === "all" ? true : tags.includes(tag);
-      item.hidden = !show;
-    });
+    showcaseCurrentPage = 1;
+    updateShowcaseGallery();
   }
 
   function renderShowcaseCards(showcase) {
@@ -501,6 +572,22 @@
       setActiveButton(btn);
       filterShowcase(tag);
     });
+  });
+
+  showcasePrevBtn?.addEventListener("click", () => {
+    if (showcaseCurrentPage <= 1) return;
+
+    showcaseCurrentPage -= 1;
+    updateShowcaseGallery();
+  });
+
+  showcaseNextBtn?.addEventListener("click", () => {
+    const totalPages = Math.max(1, Math.ceil(getFilteredShowcaseItems().length / showcaseItemsPerPage));
+
+    if (showcaseCurrentPage >= totalPages) return;
+
+    showcaseCurrentPage += 1;
+    updateShowcaseGallery();
   });
 
   const defaultBtn = document.querySelector('[data-filter="all"]');

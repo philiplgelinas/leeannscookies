@@ -154,14 +154,31 @@
 
       <div class="d-flex gap-2">
         <button class="btn btn-outline-dark btn-sm px-3" data-filter="all">All</button>
-        <button class="btn btn-outline-dark btn-sm px-3" data-filter="minimal">Minimal</button>
         <button class="btn btn-outline-dark btn-sm px-3" data-filter="floral">Floral</button>
         <button class="btn btn-outline-dark btn-sm px-3" data-filter="kids">Kids</button>
         <button class="btn btn-outline-dark btn-sm px-3" data-filter="lux">Luxe</button>
+        <button class="btn btn-outline-dark btn-sm px-3" data-filter="minimal">Minimal</button>
       </div>
     </div>
 
-    <div class="row g-3" id="showcaseGrid"></div>
+    <div class="showcase-gallery">
+      <div class="row g-3" id="showcaseGrid"></div>
+
+      <div class="showcase-gallery-controls" id="showcaseGalleryControls" hidden>
+        <button class="showcase-gallery-btn" id="showcasePrevBtn" type="button" aria-label="Previous showcase page">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+
+        <div class="showcase-gallery-meta">
+          <div class="showcase-gallery-status" id="showcaseGalleryStatus">Page 1 of 1</div>
+          <div class="showcase-gallery-dots" id="showcaseGalleryDots" aria-label="Showcase pages"></div>
+        </div>
+
+        <button class="showcase-gallery-btn" id="showcaseNextBtn" type="button" aria-label="Next showcase page">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -182,7 +199,7 @@
   <div class="container">
     <div class="row gy-4 align-items-start">
       <div class="col-12 col-lg-5">
-        <p class="eyebrow mb-2">Request</p>
+        <p class="eyebrow mb-2">Inquire</p>
         <h2 class="display-6 fw-semibold mb-2">Request Cookies</h2>
         <p class="text-secondary mb-4">
           Tell us your event date, theme, quantity, and any inspiration. We’ll follow up with availability and next steps.
@@ -327,7 +344,7 @@
 
       <!-- Text -->
       <div class="col-12 col-lg-7">
-        <p class="eyebrow mb-2">About</p>
+        <p class="eyebrow mb-2">My Story</p>
         <h2 class="display-6 fw-semibold mb-3">About the Baker</h2>
 
         <div class="card clean-card">
