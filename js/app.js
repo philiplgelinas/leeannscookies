@@ -788,13 +788,8 @@
   const lightboxImg = document.getElementById("imageLightboxImg");
   const lightboxClose = document.getElementById("imageLightboxClose");
 
-  function openLightbox(card) {
-    if (!lightbox || !lightboxImg) return;
-
-    const img = card.querySelector("img");
-    const title = card.querySelector(".fw-semibold")?.textContent?.trim() || img?.alt || "Cookie image";
-
-    if (!img) return;
+  function openLightboxFromImage(img, title = "Cookie image") {
+    if (!lightbox || !lightboxImg || !img) return;
 
     lightboxImg.src = img.src;
     lightboxImg.alt = img.alt || title;
@@ -803,6 +798,37 @@
     lightbox.setAttribute("aria-hidden", "false");
     document.body.classList.add("lightbox-open");
     lightboxClose?.focus();
+  }
+
+  function openLightbox(card) {
+    if (!card) return;
+
+    const img = card.querySelector("img");
+    const title = card.querySelector(".fw-semibold")?.textContent?.trim() || img?.alt || "Cookie image";
+
+    openLightboxFromImage(img, title);
+  }
+
+  function bindFeaturedSetLightbox() {
+    const featuredImageWrap = featuredSetImage?.closest(".hero-image-wrap");
+
+    if (!featuredImageWrap || !featuredSetImage) return;
+
+    featuredImageWrap.classList.add("is-lightbox-trigger");
+    featuredImageWrap.setAttribute("tabindex", "0");
+    featuredImageWrap.setAttribute("role", "button");
+    featuredImageWrap.setAttribute("aria-label", "Open enlarged featured cookie image");
+
+    featuredImageWrap.addEventListener("click", () => {
+      openLightboxFromImage(featuredSetImage, featuredSetTitle?.textContent?.trim() || "Featured cookie set");
+    });
+
+    featuredImageWrap.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openLightboxFromImage(featuredSetImage, featuredSetTitle?.textContent?.trim() || "Featured cookie set");
+      }
+    });
   }
 
   function closeLightbox() {
@@ -836,6 +862,7 @@
   }
 
   lightboxClose?.addEventListener("click", closeLightbox);
+  bindFeaturedSetLightbox();
 
   lightbox?.addEventListener("click", (e) => {
     if (e.target === lightbox) closeLightbox();
