@@ -185,6 +185,8 @@
   let originalAboutBakerParagraphs = [];
   let draftAboutBakerParagraphs = [];
   let cookieRequests = [];
+  let draggedPricingId = "";
+  let draggedShowcaseId = "";
 
   function clonePricing(pricing) {
     return pricing.map(item => ({ ...item }));
@@ -200,6 +202,61 @@
     el.textContent = message;
     el.classList.toggle("is-error", type === "error");
     el.classList.toggle("is-success", type === "success");
+  }
+
+  function reorderItemsByDrop(items, sourceId, targetId) {
+    if (!sourceId || !targetId || sourceId === targetId) {
+      return items;
+    }
+
+    const sourceIndex = items.findIndex(item => item.id === sourceId);
+    const targetIndex = items.findIndex(item => item.id === targetId);
+
+    if (sourceIndex < 0 || targetIndex < 0) {
+      return items;
+    }
+
+    const reorderedItems = [...items];
+    const [movedItem] = reorderedItems.splice(sourceIndex, 1);
+
+    reorderedItems.splice(targetIndex, 0, movedItem);
+
+    return reorderedItems;
+  }
+
+  function moveItemsByDirection(items, id, direction) {
+    const currentIndex = items.findIndex(item => item.id === id);
+
+    if (currentIndex < 0) {
+      return items;
+    }
+
+    const nextIndex = direction === "up"
+      ? currentIndex - 1
+      : currentIndex + 1;
+
+    if (nextIndex < 0 || nextIndex >= items.length) {
+      return items;
+    }
+
+    const reorderedItems = [...items];
+    const [movedItem] = reorderedItems.splice(currentIndex, 1);
+
+    reorderedItems.splice(nextIndex, 0, movedItem);
+
+    return reorderedItems;
+  }
+
+  function createMoveButton(label, iconClass, onClick, disabled = false) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "admin-reorder-btn";
+    button.disabled = disabled;
+    button.setAttribute("aria-label", label);
+    button.innerHTML = `<i class="${iconClass}" aria-hidden="true"></i>`;
+    button.addEventListener("click", onClick);
+
+    return button;
   }
 
   function confirmDestructiveAction(message) {
@@ -525,6 +582,26 @@
     setStatus(editorStatus, "");
   }
 
+  function movePricingCard(id, direction) {
+    draftPricing = moveItemsByDirection(draftPricing, id, direction);
+    renderPricingEditor();
+    updateActionBar();
+    setStatus(editorStatus, "");
+  }
+
+  function handlePricingDrop(targetId) {
+    if (!draggedPricingId || draggedPricingId === targetId) {
+      return;
+    }
+
+    draftPricing = reorderItemsByDrop(draftPricing, draggedPricingId, targetId);
+    draggedPricingId = "";
+
+    renderPricingEditor();
+    updateActionBar();
+    setStatus(editorStatus, "");
+  }
+
   function deletePricingCard(id) {
     if (!confirmDestructiveAction("Are you sure you want to delete this pricing card?")) {
       return;
@@ -572,8 +649,63 @@
     const itemWrap = document.createElement("div");
     itemWrap.className = "admin-pricing-item";
 
+    itemWrap.addEventListener("dragover", (e) => {
+      if (draggedPricingId && draggedPricingId !== item.id) {
+        e.preventDefault();
+
+        if (e.dataTransfer) {
+          e.dataTransfer.dropEffect = "move";
+        }
+
+        itemWrap.classList.add("is-drag-over");
+      }
+    });
+
+    itemWrap.addEventListener("dragleave", () => {
+      itemWrap.classList.remove("is-drag-over");
+    });
+
+    itemWrap.addEventListener("drop", (e) => {
+      e.preventDefault();
+      itemWrap.classList.remove("is-drag-over");
+      handlePricingDrop(item.id);
+    });
+
     const card = document.createElement("div");
     card.className = "admin-pricing-card";
+
+    const itemIndex = draftPricing.findIndex(pricingItem => pricingItem.id === item.id);
+
+    const reorderControls = document.createElement("div");
+    reorderControls.className = "admin-reorder-controls";
+
+    const dragHandle = document.createElement("button");
+    dragHandle.type = "button";
+    dragHandle.className = "admin-drag-handle";
+    dragHandle.draggable = true;
+    dragHandle.setAttribute("aria-label", `Drag set of ${item.quantity} pricing card`);
+    dragHandle.innerHTML = `<i class="bi bi-grip-vertical" aria-hidden="true"></i>`;
+
+    dragHandle.addEventListener("dragstart", (e) => {
+      draggedPricingId = item.id;
+      itemWrap.classList.add("is-dragging");
+
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", item.id);
+      }
+    });
+
+    dragHandle.addEventListener("dragend", () => {
+      draggedPricingId = "";
+      itemWrap.classList.remove("is-dragging");
+    });
+
+    reorderControls.append(
+      dragHandle,
+      createMoveButton(`Move set of ${item.quantity} up`, "bi bi-chevron-up", () => movePricingCard(item.id, "up"), itemIndex <= 0),
+      createMoveButton(`Move set of ${item.quantity} down`, "bi bi-chevron-down", () => movePricingCard(item.id, "down"), itemIndex >= draftPricing.length - 1)
+    );
 
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
@@ -625,7 +757,7 @@
     priceInputWrap.appendChild(priceInput);
     priceField.append(priceLabel, priceInputWrap);
 
-    card.append(deleteBtn, quantityField, priceField);
+    card.append(reorderControls, deleteBtn, quantityField, priceField);
     itemWrap.appendChild(card);
 
     return itemWrap;
@@ -773,6 +905,26 @@
     return file && allowedShowcaseImageTypes.includes(file.type);
   }
 
+  function moveShowcaseCard(id, direction) {
+    draftShowcase = moveItemsByDirection(draftShowcase, id, direction);
+    renderShowcaseEditor();
+    updateActionBar();
+    setStatus(showcaseStatus, "");
+  }
+
+  function handleShowcaseDrop(targetId) {
+    if (!draggedShowcaseId || draggedShowcaseId === targetId) {
+      return;
+    }
+
+    draftShowcase = reorderItemsByDrop(draftShowcase, draggedShowcaseId, targetId);
+    draggedShowcaseId = "";
+
+    renderShowcaseEditor();
+    updateActionBar();
+    setStatus(showcaseStatus, "");
+  }
+
   function addShowcaseCard() {
     const id = crypto.randomUUID();
 
@@ -850,8 +1002,63 @@
     const itemWrap = document.createElement("div");
     itemWrap.className = "admin-showcase-item";
 
+    itemWrap.addEventListener("dragover", (e) => {
+      if (draggedShowcaseId && draggedShowcaseId !== item.id) {
+        e.preventDefault();
+
+        if (e.dataTransfer) {
+          e.dataTransfer.dropEffect = "move";
+        }
+
+        itemWrap.classList.add("is-drag-over");
+      }
+    });
+
+    itemWrap.addEventListener("dragleave", () => {
+      itemWrap.classList.remove("is-drag-over");
+    });
+
+    itemWrap.addEventListener("drop", (e) => {
+      e.preventDefault();
+      itemWrap.classList.remove("is-drag-over");
+      handleShowcaseDrop(item.id);
+    });
+
     const card = document.createElement("div");
     card.className = "admin-showcase-card";
+
+    const itemIndex = draftShowcase.findIndex(showcaseItem => showcaseItem.id === item.id);
+
+    const reorderControls = document.createElement("div");
+    reorderControls.className = "admin-reorder-controls";
+
+    const dragHandle = document.createElement("button");
+    dragHandle.type = "button";
+    dragHandle.className = "admin-drag-handle";
+    dragHandle.draggable = true;
+    dragHandle.setAttribute("aria-label", `Drag ${item.title || "showcase"} card`);
+    dragHandle.innerHTML = `<i class="bi bi-grip-vertical" aria-hidden="true"></i>`;
+
+    dragHandle.addEventListener("dragstart", (e) => {
+      draggedShowcaseId = item.id;
+      itemWrap.classList.add("is-dragging");
+
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", item.id);
+      }
+    });
+
+    dragHandle.addEventListener("dragend", () => {
+      draggedShowcaseId = "";
+      itemWrap.classList.remove("is-dragging");
+    });
+
+    reorderControls.append(
+      dragHandle,
+      createMoveButton(`Move ${item.title || "showcase card"} up`, "bi bi-chevron-up", () => moveShowcaseCard(item.id, "up"), itemIndex <= 0),
+      createMoveButton(`Move ${item.title || "showcase card"} down`, "bi bi-chevron-down", () => moveShowcaseCard(item.id, "down"), itemIndex >= draftShowcase.length - 1)
+    );
 
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
@@ -1015,6 +1222,7 @@
     tagsField.append(tagsLabel, tagsWrap);
 
     card.append(
+      reorderControls,
       deleteBtn,
       imageWrap,
       featuredControl,

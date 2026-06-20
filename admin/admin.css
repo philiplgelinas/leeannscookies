@@ -326,6 +326,72 @@ body{
   min-width: 150px;
 }
 
+.admin-reorder-controls{
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+  backdrop-filter: blur(10px);
+}
+
+.admin-drag-handle,
+.admin-reorder-btn{
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--admin-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s ease, color .15s ease, transform .15s ease, opacity .15s ease;
+}
+
+.admin-drag-handle{
+  cursor: grab;
+}
+
+.admin-drag-handle:active{
+  cursor: grabbing;
+}
+
+.admin-drag-handle:hover,
+.admin-reorder-btn:hover:not(:disabled){
+  background: rgba(0,0,0,0.08);
+  color: var(--admin-text);
+}
+
+.admin-reorder-btn:disabled{
+  opacity: .28;
+  cursor: not-allowed;
+}
+
+.admin-pricing-item.is-dragging,
+.admin-showcase-item.is-dragging{
+  opacity: .55;
+}
+
+.admin-pricing-item.is-drag-over .admin-pricing-card,
+.admin-showcase-item.is-drag-over .admin-showcase-card{
+  border-color: rgba(0,0,0,0.32);
+  box-shadow: 0 24px 70px rgba(0,0,0,0.16);
+  transform: translateY(-2px);
+}
+
+.admin-pricing-card,
+.admin-showcase-card{
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+
 @media (max-width: 768px){
   .admin-editor-view{
     padding: 16px;
