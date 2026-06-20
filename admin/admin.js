@@ -202,6 +202,10 @@
     el.classList.toggle("is-success", type === "success");
   }
 
+  function confirmDestructiveAction(message) {
+    return window.confirm(message);
+  }
+
   function setActiveAdminTab(tabName) {
     adminTabButtons.forEach(button => {
       const isActive = button.getAttribute("data-admin-tab") === tabName;
@@ -522,6 +526,10 @@
   }
 
   function deletePricingCard(id) {
+    if (!confirmDestructiveAction("Are you sure you want to delete this pricing card?")) {
+      return;
+    }
+
     draftPricing = draftPricing.filter(item => item.id !== id);
     renderPricingEditor();
     updateActionBar();
@@ -786,6 +794,10 @@
   }
 
   function deleteShowcaseCard(id) {
+    if (!confirmDestructiveAction("Are you sure you want to delete this showcase card?")) {
+      return;
+    }
+
     revokePendingShowcaseImageUrl(id);
     delete pendingShowcaseImages[id];
 
@@ -1292,7 +1304,7 @@
       rejectBtn.type = "button";
       rejectBtn.className = "btn btn-danger admin-request-action-btn";
       rejectBtn.textContent = "Reject";
-      rejectBtn.addEventListener("click", () => deleteCookieRequest(request.id));
+      rejectBtn.addEventListener("click", () => deleteCookieRequest(request.id, "reject"));
 
       actions.append(acceptBtn, rejectBtn);
     }
@@ -1312,7 +1324,7 @@
       deleteBtn.type = "button";
       deleteBtn.className = "btn btn-danger admin-request-action-btn";
       deleteBtn.textContent = "Delete";
-      deleteBtn.addEventListener("click", () => deleteCookieRequest(request.id));
+      deleteBtn.addEventListener("click", () => deleteCookieRequest(request.id, "delete"));
 
       actions.appendChild(deleteBtn);
     }
@@ -1505,7 +1517,15 @@
     }
   }
 
-  async function deleteCookieRequest(id) {
+  async function deleteCookieRequest(id, action = "delete") {
+    const message = action === "reject"
+      ? "Are you sure you want to reject this request? This will permanently delete it from the dashboard."
+      : "Are you sure you want to delete this request? This cannot be undone.";
+
+    if (!confirmDestructiveAction(message)) {
+      return;
+    }
+
     setStatus(cookieRequestsStatus, "Deleting request...");
 
     try {
