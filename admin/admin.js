@@ -22,6 +22,23 @@
   const upcomingRequestsGrid = document.getElementById("upcomingRequestsGrid");
   const pastRequestsGrid = document.getElementById("pastRequestsGrid");
   const totalEarned = document.getElementById("totalEarned");
+  const analyticsPanel = document.getElementById("analyticsPanel");
+  const analyticsStatus = document.getElementById("analyticsStatus");
+  const analyticsRange = document.getElementById("analyticsRange");
+  const refreshAnalyticsBtn = document.getElementById("refreshAnalyticsBtn");
+  const analyticsGeneratedAt = document.getElementById("analyticsGeneratedAt");
+  const analyticsVisitors = document.getElementById("analyticsVisitors");
+  const analyticsPageViews = document.getElementById("analyticsPageViews");
+  const analyticsRequests = document.getElementById("analyticsRequests");
+  const analyticsConversionRate = document.getElementById("analyticsConversionRate");
+  const analyticsFormStarts = document.getElementById("analyticsFormStarts");
+  const analyticsShowcaseOpens = document.getElementById("analyticsShowcaseOpens");
+  const analyticsTopCategory = document.getElementById("analyticsTopCategory");
+  const analyticsEventsCount = document.getElementById("analyticsEventsCount");
+  const analyticsFunnel = document.getElementById("analyticsFunnel");
+  const analyticsCategories = document.getElementById("analyticsCategories");
+  const analyticsShowcaseImages = document.getElementById("analyticsShowcaseImages");
+  const analyticsRecentActivity = document.getElementById("analyticsRecentActivity");
 
   const defaultPricing = [
     { id: "set-6", quantity: 6, price: 18 },
@@ -185,6 +202,7 @@
   let originalAboutBakerParagraphs = [];
   let draftAboutBakerParagraphs = [];
   let cookieRequests = [];
+  let analyticsLoaded = false;
   let draggedPricingId = "";
   let draggedShowcaseId = "";
 
@@ -273,6 +291,10 @@
 
     if (dashboardPanel) {
       dashboardPanel.hidden = tabName !== "dashboard";
+    }
+
+    if (analyticsPanel) {
+      analyticsPanel.hidden = tabName !== "analytics";
     }
 
     if (siteBuilderPanel) {
@@ -1429,6 +1451,274 @@
     valueEl.textContent = formatCurrency(total);
   }
 
+  function formatAnalyticsNumber(value) {
+    const numberValue = Number.parseInt(value, 10);
+
+    if (!Number.isInteger(numberValue)) {
+      return "0";
+    }
+
+    return numberValue.toLocaleString("en-US");
+  }
+
+  function formatAnalyticsPercent(value) {
+    const numberValue = Number.parseFloat(value);
+
+    if (!Number.isFinite(numberValue)) {
+      return "0%";
+    }
+
+    return `${numberValue.toLocaleString("en-US", {
+      maximumFractionDigits: 1
+    })}%`;
+  }
+
+  function formatAnalyticsDateTime(value) {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    });
+  }
+
+  function formatCategoryLabel(value) {
+    const normalizedValue = normalizeString(value).toLowerCase();
+
+    const labels = {
+      all: "All",
+      floral: "Floral",
+      kids: "Kids",
+      lux: "Luxe",
+      minimal: "Minimal"
+    };
+
+    return labels[normalizedValue] || value || "—";
+  }
+
+  function getAnalyticsDays() {
+    const days = Number.parseInt(analyticsRange?.value, 10);
+
+    return Number.isInteger(days) && days > 0 ? days : 30;
+  }
+
+  function setAnalyticsText(el, value) {
+    if (!el) return;
+    el.textContent = value;
+  }
+
+  function createAnalyticsEmpty(message) {
+    const empty = document.createElement("div");
+    empty.className = "admin-analytics-empty";
+    empty.textContent = message;
+
+    return empty;
+  }
+
+  function renderAnalyticsBarList(container, items, emptyMessage, labelFormatter = value => value) {
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    if (!Array.isArray(items) || !items.length) {
+      container.appendChild(createAnalyticsEmpty(emptyMessage));
+      return;
+    }
+
+    const maxCount = Math.max(...items.map(item => Number.parseInt(item.count, 10) || 0), 1);
+
+    items.forEach(item => {
+      const count = Number.parseInt(item.count, 10) || 0;
+      const percent = Math.max(4, Math.round((count / maxCount) * 100));
+
+      const row = document.createElement("div");
+      row.className = "admin-analytics-list-row";
+
+      const top = document.createElement("div");
+      top.className = "admin-analytics-list-row-top";
+
+      const label = document.createElement("div");
+      label.className = "admin-analytics-list-label";
+      label.textContent = labelFormatter(item.label);
+
+      const value = document.createElement("div");
+      value.className = "admin-analytics-list-value";
+      value.textContent = formatAnalyticsNumber(count);
+
+      const barWrap = document.createElement("div");
+      barWrap.className = "admin-analytics-bar-wrap";
+
+      const bar = document.createElement("div");
+      bar.className = "admin-analytics-bar";
+      bar.style.width = `${percent}%`;
+
+      top.append(label, value);
+      barWrap.appendChild(bar);
+      row.append(top, barWrap);
+      container.appendChild(row);
+    });
+  }
+
+  function getActivityDescription(activity) {
+    const metadata = activity?.metadata || {};
+
+    if (activity.type === "page_view") {
+      return activity.path || "/";
+    }
+
+    if (activity.type === "showcase_filter") {
+      return `Filtered by ${formatCategoryLabel(metadata.filter)}`;
+    }
+
+    if (activity.type === "showcase_lightbox") {
+      return `Opened ${metadata.title || "showcase image"}`;
+    }
+
+    if (activity.type === "featured_lightbox") {
+      return `Opened featured image: ${metadata.title || "Featured Set"}`;
+    }
+
+    if (activity.type === "gallery_page") {
+      return `Page ${metadata.page || "—"} • ${formatCategoryLabel(metadata.filter)}`;
+    }
+
+    if (activity.type === "request_form_start") {
+      return "Started filling out the request form";
+    }
+
+    if (activity.type === "request_submit") {
+      const quantity = metadata.quantity ? `Quantity ${metadata.quantity}` : "";
+      const estimatedPrice = metadata.estimatedPrice ? `${metadata.estimatedPrice}` : "";
+
+      return [quantity, estimatedPrice].filter(Boolean).join(" • ") || "Submitted request form";
+    }
+
+    return activity.path || "";
+  }
+
+  function renderAnalyticsRecentActivity(activityItems) {
+    if (!analyticsRecentActivity) return;
+
+    analyticsRecentActivity.innerHTML = "";
+
+    if (!Array.isArray(activityItems) || !activityItems.length) {
+      analyticsRecentActivity.appendChild(createAnalyticsEmpty("No recent activity yet."));
+      return;
+    }
+
+    activityItems.forEach(activity => {
+      const row = document.createElement("div");
+      row.className = "admin-analytics-activity-row";
+
+      const icon = document.createElement("div");
+      icon.className = "admin-analytics-activity-icon";
+
+      if (activity.type === "request_submit") {
+        icon.innerHTML = `<i class="bi bi-envelope-check"></i>`;
+      } else if (activity.type === "showcase_lightbox" || activity.type === "featured_lightbox") {
+        icon.innerHTML = `<i class="bi bi-image"></i>`;
+      } else if (activity.type === "showcase_filter") {
+        icon.innerHTML = `<i class="bi bi-funnel"></i>`;
+      } else {
+        icon.innerHTML = `<i class="bi bi-activity"></i>`;
+      }
+
+      const body = document.createElement("div");
+      body.className = "admin-analytics-activity-body";
+
+      const label = document.createElement("div");
+      label.className = "admin-analytics-activity-label";
+      label.textContent = activity.label || activity.type || "Activity";
+
+      const description = document.createElement("div");
+      description.className = "admin-analytics-activity-description";
+      description.textContent = getActivityDescription(activity);
+
+      const time = document.createElement("div");
+      time.className = "admin-analytics-activity-time";
+      time.textContent = formatAnalyticsDateTime(activity.createdAt);
+
+      body.append(label, description, time);
+      row.append(icon, body);
+      analyticsRecentActivity.appendChild(row);
+    });
+  }
+
+  function renderAnalyticsFunnel(funnel) {
+    const pageViews = Number.parseInt(funnel?.pageViews, 10) || 0;
+    const formStarts = Number.parseInt(funnel?.formStarts, 10) || 0;
+    const requestSubmissions = Number.parseInt(funnel?.requestSubmissions, 10) || 0;
+
+    renderAnalyticsBarList(analyticsFunnel, [
+      {
+        label: "Page Views",
+        count: pageViews
+      },
+      {
+        label: "Form Starts",
+        count: formStarts
+      },
+      {
+        label: "Requests",
+        count: requestSubmissions
+      }
+    ], "No funnel data yet.");
+  }
+
+  function renderAnalytics(analytics) {
+    const totals = analytics?.totals || {};
+
+    setAnalyticsText(analyticsVisitors, formatAnalyticsNumber(totals.visitors));
+    setAnalyticsText(analyticsPageViews, formatAnalyticsNumber(totals.pageViews));
+    setAnalyticsText(analyticsRequests, formatAnalyticsNumber(totals.requestSubmissions));
+    setAnalyticsText(analyticsConversionRate, formatAnalyticsPercent(totals.requestConversionRate));
+    setAnalyticsText(analyticsFormStarts, formatAnalyticsNumber(totals.formStarts));
+    setAnalyticsText(analyticsShowcaseOpens, formatAnalyticsNumber(totals.showcaseImageOpens));
+    setAnalyticsText(analyticsTopCategory, totals.mostPopularCategory ? formatCategoryLabel(totals.mostPopularCategory) : "—");
+    setAnalyticsText(analyticsEventsCount, formatAnalyticsNumber(analytics?.eventCount));
+
+    if (analyticsGeneratedAt) {
+      const generatedAt = formatAnalyticsDateTime(analytics?.generatedAt);
+      analyticsGeneratedAt.textContent = generatedAt
+        ? `Showing the last ${analytics?.days || getAnalyticsDays()} days • Updated ${generatedAt}`
+        : "Analytics will appear after the public site starts collecting events.";
+    }
+
+    renderAnalyticsFunnel(analytics?.funnel);
+    renderAnalyticsBarList(analyticsCategories, analytics?.popularCategories, "No category activity yet.", formatCategoryLabel);
+    renderAnalyticsBarList(analyticsShowcaseImages, analytics?.popularShowcaseImages, "No image activity yet.");
+    renderAnalyticsRecentActivity(analytics?.recentActivity);
+  }
+
+  async function refreshAnalytics() {
+    if (!analyticsPanel) return;
+
+    const days = getAnalyticsDays();
+
+    setStatus(analyticsStatus, "Loading analytics...");
+
+    try {
+      if (refreshAnalyticsBtn) refreshAnalyticsBtn.disabled = true;
+
+      const data = await fetchJson(`/.netlify/functions/get-analytics?days=${encodeURIComponent(days)}`);
+      renderAnalytics(data.analytics || {});
+      analyticsLoaded = true;
+      setStatus(analyticsStatus, "");
+    } catch (err) {
+      console.warn("Could not load analytics.", err);
+      setStatus(analyticsStatus, err.message || "Could not load analytics.", "error");
+    } finally {
+      if (refreshAnalyticsBtn) refreshAnalyticsBtn.disabled = false;
+    }
+  }
+
   function createRequestDetail(label, value) {
     const detail = document.createElement("div");
     detail.className = "admin-request-detail";
@@ -2227,7 +2517,21 @@
       if (tabName === "dashboard") {
         refreshCookieRequests();
       }
+
+      if (tabName === "analytics") {
+        refreshAnalytics();
+      }
     });
+  });
+
+  refreshAnalyticsBtn?.addEventListener("click", refreshAnalytics);
+
+  analyticsRange?.addEventListener("change", () => {
+    if (analyticsPanel && !analyticsPanel.hidden) {
+      refreshAnalytics();
+    } else {
+      analyticsLoaded = false;
+    }
   });
 
   checkSession();

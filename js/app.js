@@ -15,6 +15,83 @@
     return String(value || "").trim();
   }
 
+  const analyticsVisitorStorageKey = "leeanns_analytics_visitor_id";
+  const analyticsSessionStorageKey = "leeanns_analytics_session_id";
+  let requestFormStartTracked = false;
+
+  function createAnalyticsId(prefix) {
+    if (window.crypto?.randomUUID) {
+      return `${prefix}-${crypto.randomUUID()}`;
+    }
+
+    return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  function getStoredAnalyticsId(storage, key, prefix) {
+    try {
+      const existingId = storage.getItem(key);
+
+      if (existingId) {
+        return existingId;
+      }
+
+      const id = createAnalyticsId(prefix);
+      storage.setItem(key, id);
+
+      return id;
+    } catch (err) {
+      return createAnalyticsId(prefix);
+    }
+  }
+
+  function getAnalyticsVisitorId() {
+    return getStoredAnalyticsId(window.localStorage, analyticsVisitorStorageKey, "visitor");
+  }
+
+  function getAnalyticsSessionId() {
+    return getStoredAnalyticsId(window.sessionStorage, analyticsSessionStorageKey, "session");
+  }
+
+  function sendAnalyticsEvent(type, metadata = {}) {
+    const payload = {
+      type,
+      path: window.location.pathname || "/",
+      visitorId: getAnalyticsVisitorId(),
+      sessionId: getAnalyticsSessionId(),
+      metadata
+    };
+
+    const body = JSON.stringify(payload);
+
+    try {
+      if (navigator.sendBeacon) {
+        const blob = new Blob([body], {
+          type: "application/json"
+        });
+
+        navigator.sendBeacon("/.netlify/functions/track-analytics", blob);
+        return;
+      }
+    } catch (err) {
+      // Fall back to fetch below.
+    }
+
+    fetch("/.netlify/functions/track-analytics", {
+      method: "POST",
+      keepalive: true,
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body
+    }).catch(err => {
+      console.warn("Could not send analytics event.", err);
+    });
+  }
+
+  sendAnalyticsEvent("page_view", {
+    title: document.title,
+    referrerHost: document.referrer
+  });
   // About the Baker
   const aboutBakerParagraphs = document.getElementById("aboutBakerParagraphs");
 
@@ -464,8 +541,7 @@
       dot.classList.toggle("active", page === showcaseCurrentPage);
       dot.setAttribute("aria-label", `Go to showcase page ${page}`);
       dot.addEventListener("click", () => {
-        showcaseCurrentPage = page;
-        updateShowcaseGallery();
+        setShowcaseGalleryPage(page);
       });
 
       showcaseGalleryDots.appendChild(dot);
@@ -509,6 +585,23 @@
     }
 
     renderShowcaseGalleryDots(totalPages);
+  }
+
+  function setShowcaseGalleryPage(page) {
+    const totalPages = Math.max(1, Math.ceil(getFilteredShowcaseItems().length / showcaseItemsPerPage));
+    const nextPage = Math.min(Math.max(page, 1), totalPages);
+
+    if (nextPage === showcaseCurrentPage) {
+      return;
+    }
+
+    showcaseCurrentPage = nextPage;
+    updateShowcaseGallery();
+
+    sendAnalyticsEvent("gallery_page", {
+      page: showcaseCurrentPage,
+      filter: currentShowcaseFilter
+    });
   }
 
   function filterShowcase(tag) {
@@ -568,26 +661,22 @@
 
   filterButtons.forEach(btn => {
     btn.addEventListener("click", () => {
-      const tag = btn.getAttribute("data-filter");
+      const tag = btn.getAttribute("data-filter") || "all";
       setActiveButton(btn);
       filterShowcase(tag);
+
+      sendAnalyticsEvent("showcase_filter", {
+        filter: tag
+      });
     });
   });
 
   showcasePrevBtn?.addEventListener("click", () => {
-    if (showcaseCurrentPage <= 1) return;
-
-    showcaseCurrentPage -= 1;
-    updateShowcaseGallery();
+    setShowcaseGalleryPage(showcaseCurrentPage - 1);
   });
 
   showcaseNextBtn?.addEventListener("click", () => {
-    const totalPages = Math.max(1, Math.ceil(getFilteredShowcaseItems().length / showcaseItemsPerPage));
-
-    if (showcaseCurrentPage >= totalPages) return;
-
-    showcaseCurrentPage += 1;
-    updateShowcaseGallery();
+    setShowcaseGalleryPage(showcaseCurrentPage + 1);
   });
 
   const defaultBtn = document.querySelector('[data-filter="all"]');
@@ -788,7 +877,7 @@
   const lightboxImg = document.getElementById("imageLightboxImg");
   const lightboxClose = document.getElementById("imageLightboxClose");
 
-  function openLightboxFromImage(img, title = "Cookie image") {
+  function openLightboxFromImage(img, title = "Cookie image", analyticsType = "showcase_lightbox") {
     if (!lightbox || !lightboxImg || !img) return;
 
     lightboxImg.src = img.src;
@@ -798,6 +887,10 @@
     lightbox.setAttribute("aria-hidden", "false");
     document.body.classList.add("lightbox-open");
     lightboxClose?.focus();
+
+    sendAnalyticsEvent(analyticsType, {
+      title
+    });
   }
 
   function openLightbox(card) {
@@ -820,13 +913,13 @@
     featuredImageWrap.setAttribute("aria-label", "Open enlarged featured cookie image");
 
     featuredImageWrap.addEventListener("click", () => {
-      openLightboxFromImage(featuredSetImage, featuredSetTitle?.textContent?.trim() || "Featured cookie set");
+      openLightboxFromImage(featuredSetImage, featuredSetTitle?.textContent?.trim() || "Featured cookie set", "featured_lightbox");
     });
 
     featuredImageWrap.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        openLightboxFromImage(featuredSetImage, featuredSetTitle?.textContent?.trim() || "Featured cookie set");
+        openLightboxFromImage(featuredSetImage, featuredSetTitle?.textContent?.trim() || "Featured cookie set", "featured_lightbox");
       }
     });
   }
@@ -892,6 +985,18 @@
   const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
   const allowedImageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
   let selectedImageFiles = [];
+
+  function trackRequestFormStart() {
+    if (requestFormStartTracked) {
+      return;
+    }
+
+    requestFormStartTracked = true;
+
+    sendAnalyticsEvent("request_form_start", {
+      source: "request_form"
+    });
+  }
 
   function setStatus(msg, isError = false) {
     if (!statusEl) return;
@@ -1118,6 +1223,9 @@
     };
   }
 
+  form?.addEventListener("focusin", trackRequestFormStart);
+  form?.addEventListener("input", trackRequestFormStart);
+
   quantityInput?.addEventListener("input", updatePriceEstimate);
 
   phoneInput?.addEventListener("input", () => {
@@ -1171,6 +1279,11 @@
           "Content-Type": "application/json"
         },
         body: JSON.stringify(requestPayload)
+      });
+
+      sendAnalyticsEvent("request_submit", {
+        quantity: requestPayload.quantity,
+        estimatedPrice: requestPayload.estimatedPrice
       });
 
       setStatus("Request sent! We’ll reply soon.");
