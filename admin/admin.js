@@ -1442,6 +1442,80 @@
     });
   }
 
+  function formatPhoneInput(value) {
+    const digits = normalizeString(value).replace(/\D/g, "");
+    const normalizedDigits = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits.slice(0, 10);
+
+    if (!normalizedDigits) {
+      return "";
+    }
+
+    if (normalizedDigits.length <= 3) {
+      return `(${normalizedDigits}`;
+    }
+
+    if (normalizedDigits.length <= 6) {
+      return `(${normalizedDigits.slice(0, 3)}) ${normalizedDigits.slice(3)}`;
+    }
+
+    return `(${normalizedDigits.slice(0, 3)}) ${normalizedDigits.slice(3, 6)}-${normalizedDigits.slice(6)}`;
+  }
+
+  function formatPriceInput(value) {
+    const rawValue = normalizeString(value).replace(/[^0-9.]/g, "");
+
+    if (!rawValue) {
+      return "";
+    }
+
+    const hasDecimal = rawValue.includes(".");
+    const parts = rawValue.split(".");
+    const dollars = parts[0].replace(/^0+(?=\d)/, "") || "0";
+    const cents = parts.slice(1).join("").slice(0, 2);
+
+    return hasDecimal ? `$${dollars}.${cents}` : `$${dollars}`;
+  }
+
+  function formatPriceForModal(value) {
+    const rawValue = normalizeString(value);
+
+    if (!rawValue) {
+      return "";
+    }
+
+    const priceValue = parseEstimatedPrice(rawValue);
+
+    if (!Number.isFinite(priceValue)) {
+      return "";
+    }
+
+    return formatCurrency(priceValue);
+  }
+
+  function attachEditRequestInputFormatting() {
+    const phoneInput = document.getElementById("editRequestPhone");
+    const estimatedPriceInput = document.getElementById("editRequestEstimatedPrice");
+    const finalPriceInput = document.getElementById("editRequestFinalPrice");
+    const priceInputs = [
+      estimatedPriceInput,
+      finalPriceInput
+    ].filter(Boolean);
+
+    phoneInput?.addEventListener("input", () => {
+      phoneInput.value = formatPhoneInput(phoneInput.value);
+    });
+
+    priceInputs.forEach(input => {
+      input.addEventListener("input", () => {
+        input.value = formatPriceInput(input.value);
+      });
+
+      input.addEventListener("blur", () => {
+        input.value = formatPriceForModal(input.value);
+      });
+    });
+  }
+
   function promptForFinalPrice(request) {
     const defaultValue = request.finalPrice || request.estimatedPrice || "";
     const enteredValue = window.prompt("Enter the final price for this completed order:", defaultValue);
@@ -1586,6 +1660,7 @@
     editRequestStatus = document.getElementById("editRequestStatus");
 
     editRequestForm.addEventListener("submit", saveRequestEdits);
+    attachEditRequestInputFormatting();
   }
 
   function setEditRequestValue(fieldName, value) {
@@ -1606,11 +1681,11 @@
     setEditRequestValue("id", request.id);
     setEditRequestValue("name", request.name);
     setEditRequestValue("email", request.email);
-    setEditRequestValue("phone", request.phone);
+    setEditRequestValue("phone", formatPhoneInput(request.phone));
     setEditRequestValue("eventDate", request.eventDate);
     setEditRequestValue("quantity", Number.isInteger(request.quantity) ? String(request.quantity) : "");
-    setEditRequestValue("estimatedPrice", request.estimatedPrice);
-    setEditRequestValue("finalPrice", request.finalPrice);
+    setEditRequestValue("estimatedPrice", formatPriceForModal(request.estimatedPrice));
+    setEditRequestValue("finalPrice", formatPriceForModal(request.finalPrice));
     setEditRequestValue("theme", request.theme);
     setEditRequestValue("inspo", request.inspo);
     setEditRequestValue("details", request.details);
@@ -1650,11 +1725,11 @@
       id: normalizeString(values.id),
       name: normalizeString(values.name),
       email: normalizeString(values.email),
-      phone: normalizeString(values.phone),
+      phone: formatPhoneInput(values.phone),
       eventDate: normalizeString(values.eventDate),
       quantity: normalizeString(values.quantity),
-      estimatedPrice: isCompletedRequest ? normalizeString(activeEditRequest?.estimatedPrice) : normalizeString(values.estimatedPrice),
-      finalPrice: isCompletedRequest ? normalizeString(values.finalPrice) : normalizeString(activeEditRequest?.finalPrice),
+      estimatedPrice: isCompletedRequest ? normalizeString(activeEditRequest?.estimatedPrice) : formatPriceForModal(values.estimatedPrice),
+      finalPrice: isCompletedRequest ? formatPriceForModal(values.finalPrice) : normalizeString(activeEditRequest?.finalPrice),
       theme: normalizeString(values.theme),
       inspo: normalizeString(values.inspo),
       details: normalizeString(values.details)
