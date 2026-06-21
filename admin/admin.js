@@ -205,6 +205,10 @@
   let analyticsLoaded = false;
   let draggedPricingId = "";
   let draggedShowcaseId = "";
+  let editRequestModal = null;
+  let editRequestForm = null;
+  let editRequestStatus = null;
+  let activeEditRequest = null;
 
   function clonePricing(pricing) {
     return pricing.map(item => ({ ...item }));
@@ -1470,6 +1474,210 @@
     valueEl.textContent = formatCurrency(total);
   }
 
+  function getRequestPriceLabel(request) {
+    return request.status === "completed" ? "Final Price" : "Estimated Price";
+  }
+
+  function getRequestDisplayPrice(request) {
+    return request.status === "completed" ? request.finalPrice : request.estimatedPrice;
+  }
+
+  function ensureEditRequestModal() {
+    if (editRequestModal && editRequestForm) {
+      return;
+    }
+
+    const modal = document.createElement("div");
+    modal.className = "modal fade";
+    modal.id = "editRequestModal";
+    modal.tabIndex = -1;
+    modal.setAttribute("aria-hidden", "true");
+
+    modal.innerHTML = `
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content admin-edit-request-modal">
+        <div class="modal-header">
+          <div>
+            <p class="admin-eyebrow mb-1">Edit Request</p>
+            <h2 class="modal-title h5 fw-semibold mb-0">Update Cookie Request</h2>
+          </div>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <form id="editRequestForm" novalidate>
+          <div class="modal-body">
+            <input type="hidden" id="editRequestId" name="id" />
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="editRequestName">Name</label>
+                <input class="form-control" id="editRequestName" name="name" type="text" required />
+                <div class="invalid-feedback">Name is required.</div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label" for="editRequestEmail">Email</label>
+                <input class="form-control" id="editRequestEmail" name="email" type="email" required />
+                <div class="invalid-feedback">A valid email is required.</div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label" for="editRequestPhone">Phone</label>
+                <input class="form-control" id="editRequestPhone" name="phone" type="tel" />
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label" for="editRequestEventDate">Event Date</label>
+                <input class="form-control" id="editRequestEventDate" name="eventDate" type="date" required />
+                <div class="invalid-feedback">Event date is required.</div>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label" for="editRequestQuantity">Quantity</label>
+                <input class="form-control" id="editRequestQuantity" name="quantity" type="number" min="1" step="1" required />
+                <div class="invalid-feedback">Quantity is required.</div>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label" for="editRequestEstimatedPrice">Estimated Price</label>
+                <input class="form-control" id="editRequestEstimatedPrice" name="estimatedPrice" type="text" placeholder="$0.00" />
+              </div>
+
+              <div class="col-md-4" id="editRequestFinalPriceWrap">
+                <label class="form-label" for="editRequestFinalPrice">Final Price</label>
+                <input class="form-control" id="editRequestFinalPrice" name="finalPrice" type="text" placeholder="$0.00" />
+              </div>
+
+              <div class="col-12">
+                <label class="form-label" for="editRequestTheme">Theme</label>
+                <input class="form-control" id="editRequestTheme" name="theme" type="text" required />
+                <div class="invalid-feedback">Theme is required.</div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label" for="editRequestInspo">Inspiration Link</label>
+                <input class="form-control" id="editRequestInspo" name="inspo" type="url" />
+              </div>
+
+              <div class="col-12">
+                <label class="form-label" for="editRequestDetails">Details</label>
+                <textarea class="form-control" id="editRequestDetails" name="details" rows="5" required></textarea>
+                <div class="invalid-feedback">Details are required.</div>
+              </div>
+            </div>
+
+            <div class="admin-status mt-3" id="editRequestStatus" role="status" aria-live="polite"></div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-outline-dark" type="button" data-bs-dismiss="modal">Cancel</button>
+            <button class="btn btn-primary" id="saveRequestEditsBtn" type="submit">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+    document.body.appendChild(modal);
+
+    editRequestModal = new bootstrap.Modal(modal);
+    editRequestForm = document.getElementById("editRequestForm");
+    editRequestStatus = document.getElementById("editRequestStatus");
+
+    editRequestForm.addEventListener("submit", saveRequestEdits);
+  }
+
+  function setEditRequestValue(fieldName, value) {
+    const field = editRequestForm?.querySelector(`[name="${fieldName}"]`);
+
+    if (field) {
+      field.value = value || "";
+    }
+  }
+
+  function openEditRequestModal(request) {
+    ensureEditRequestModal();
+
+    activeEditRequest = request;
+    editRequestForm.classList.remove("was-validated");
+    setStatus(editRequestStatus, "");
+
+    setEditRequestValue("id", request.id);
+    setEditRequestValue("name", request.name);
+    setEditRequestValue("email", request.email);
+    setEditRequestValue("phone", request.phone);
+    setEditRequestValue("eventDate", request.eventDate);
+    setEditRequestValue("quantity", Number.isInteger(request.quantity) ? String(request.quantity) : "");
+    setEditRequestValue("estimatedPrice", request.estimatedPrice);
+    setEditRequestValue("finalPrice", request.finalPrice);
+    setEditRequestValue("theme", request.theme);
+    setEditRequestValue("inspo", request.inspo);
+    setEditRequestValue("details", request.details);
+
+    const finalPriceWrap = document.getElementById("editRequestFinalPriceWrap");
+
+    if (finalPriceWrap) {
+      finalPriceWrap.hidden = request.status !== "completed";
+    }
+
+    editRequestModal.show();
+  }
+
+  function buildRequestEditPayload() {
+    const values = Object.fromEntries(new FormData(editRequestForm).entries());
+
+    return {
+      id: normalizeString(values.id),
+      name: normalizeString(values.name),
+      email: normalizeString(values.email),
+      phone: normalizeString(values.phone),
+      eventDate: normalizeString(values.eventDate),
+      quantity: normalizeString(values.quantity),
+      estimatedPrice: normalizeString(values.estimatedPrice),
+      finalPrice: normalizeString(values.finalPrice),
+      theme: normalizeString(values.theme),
+      inspo: normalizeString(values.inspo),
+      details: normalizeString(values.details)
+    };
+  }
+
+  async function saveRequestEdits(e) {
+    e.preventDefault();
+
+    if (!editRequestForm.checkValidity()) {
+      editRequestForm.classList.add("was-validated");
+      setStatus(editRequestStatus, "Please fix the highlighted fields.", "error");
+      return;
+    }
+
+    const saveBtn = document.getElementById("saveRequestEditsBtn");
+    const payload = buildRequestEditPayload();
+
+    try {
+      if (saveBtn) saveBtn.disabled = true;
+
+      setStatus(editRequestStatus, "Saving request...");
+
+      await fetchJson("/.netlify/functions/update-cookie-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      editRequestModal.hide();
+      activeEditRequest = null;
+
+      await refreshCookieRequests();
+    } catch (err) {
+      console.warn("Could not save request edits.", err);
+      setStatus(editRequestStatus, err.message || "Could not save request edits.", "error");
+    } finally {
+      if (saveBtn) saveBtn.disabled = false;
+    }
+  }
+
   function formatAnalyticsNumber(value) {
     const numberValue = Number.parseInt(value, 10);
 
@@ -1810,6 +2018,16 @@
     const actions = document.createElement("div");
     actions.className = "admin-request-actions";
 
+    if (request.status === "accepted" || request.status === "completed") {
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "btn btn-primary admin-request-action-btn";
+      editBtn.textContent = "Edit";
+      editBtn.addEventListener("click", () => openEditRequestModal(request));
+
+      actions.appendChild(editBtn);
+    }
+
     if (request.status === "pending") {
       const acceptBtn = document.createElement("button");
       acceptBtn.type = "button";
@@ -1893,7 +2111,7 @@
       createRequestDetail("Email", request.email),
       createRequestDetail("Phone", request.phone),
       createRequestDetail("Quantity", Number.isInteger(request.quantity) ? String(request.quantity) : ""),
-      createRequestDetail(request.status === "completed" ? "Final Price" : "Estimated Price", request.status === "completed" ? request.finalPrice : request.estimatedPrice),
+      createRequestDetail(getRequestPriceLabel(request), getRequestDisplayPrice(request)),
       createRequestDetail("Theme", request.theme),
       createRequestLinkDetail("Inspiration Link", request.inspo)
     );
@@ -2290,6 +2508,7 @@
     originalAboutBakerParagraphs = [];
     draftAboutBakerParagraphs = [];
     cookieRequests = [];
+    activeEditRequest = null;
     renderCookieRequests();
     setStatus(cookieRequestsStatus, "");
     showLoginView();

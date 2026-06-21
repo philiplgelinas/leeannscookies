@@ -1325,3 +1325,20 @@ body{
     min-height: auto;
   }
 }
+
+.admin-edit-request-modal{
+  border: 0;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: var(--admin-shadow-lg);
+}
+
+.admin-edit-request-modal .modal-header,
+.admin-edit-request-modal .modal-footer{
+  border-color: var(--admin-border);
+  background: rgba(255,255,255,0.92);
+}
+
+.admin-edit-request-modal .modal-body{
+  background: #fff;
+}
