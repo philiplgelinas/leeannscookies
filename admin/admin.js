@@ -1479,7 +1479,7 @@
   }
 
   function getRequestDisplayPrice(request) {
-    return request.status === "completed" ? request.finalPrice : request.estimatedPrice;
+    return request.status === "completed" ? request.finalPrice || "$0.00" : request.estimatedPrice;
   }
 
   function ensureEditRequestModal() {
@@ -1538,7 +1538,7 @@
                 <div class="invalid-feedback">Quantity is required.</div>
               </div>
 
-              <div class="col-md-4">
+              <div class="col-md-4" id="editRequestEstimatedPriceWrap">
                 <label class="form-label" for="editRequestEstimatedPrice">Estimated Price</label>
                 <input class="form-control" id="editRequestEstimatedPrice" name="estimatedPrice" type="text" placeholder="$0.00" />
               </div>
@@ -1546,6 +1546,7 @@
               <div class="col-md-4" id="editRequestFinalPriceWrap">
                 <label class="form-label" for="editRequestFinalPrice">Final Price</label>
                 <input class="form-control" id="editRequestFinalPrice" name="finalPrice" type="text" placeholder="$0.00" />
+                <div class="invalid-feedback">Final price is required.</div>
               </div>
 
               <div class="col-12">
@@ -1614,10 +1615,28 @@
     setEditRequestValue("inspo", request.inspo);
     setEditRequestValue("details", request.details);
 
+    const estimatedPriceWrap = document.getElementById("editRequestEstimatedPriceWrap");
     const finalPriceWrap = document.getElementById("editRequestFinalPriceWrap");
+    const estimatedPriceInput = document.getElementById("editRequestEstimatedPrice");
+    const finalPriceInput = document.getElementById("editRequestFinalPrice");
+    const isCompletedRequest = request.status === "completed";
+
+    if (estimatedPriceWrap) {
+      estimatedPriceWrap.hidden = isCompletedRequest;
+    }
 
     if (finalPriceWrap) {
-      finalPriceWrap.hidden = request.status !== "completed";
+      finalPriceWrap.hidden = !isCompletedRequest;
+    }
+
+    if (estimatedPriceInput) {
+      estimatedPriceInput.required = !isCompletedRequest;
+      estimatedPriceInput.disabled = isCompletedRequest;
+    }
+
+    if (finalPriceInput) {
+      finalPriceInput.required = isCompletedRequest;
+      finalPriceInput.disabled = !isCompletedRequest;
     }
 
     editRequestModal.show();
@@ -1625,6 +1644,7 @@
 
   function buildRequestEditPayload() {
     const values = Object.fromEntries(new FormData(editRequestForm).entries());
+    const isCompletedRequest = activeEditRequest?.status === "completed";
 
     return {
       id: normalizeString(values.id),
@@ -1633,8 +1653,8 @@
       phone: normalizeString(values.phone),
       eventDate: normalizeString(values.eventDate),
       quantity: normalizeString(values.quantity),
-      estimatedPrice: normalizeString(values.estimatedPrice),
-      finalPrice: normalizeString(values.finalPrice),
+      estimatedPrice: isCompletedRequest ? normalizeString(activeEditRequest?.estimatedPrice) : normalizeString(values.estimatedPrice),
+      finalPrice: isCompletedRequest ? normalizeString(values.finalPrice) : normalizeString(activeEditRequest?.finalPrice),
       theme: normalizeString(values.theme),
       inspo: normalizeString(values.inspo),
       details: normalizeString(values.details)
