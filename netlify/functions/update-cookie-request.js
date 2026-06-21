@@ -147,7 +147,10 @@ exports.handler = async (event) => {
 
     const existingRequest = requests[requestIndex];
 
-    if (existingRequest.status === "completed" && !finalPrice) {
+    const existingStatus = normalizeString(existingRequest.status).toLowerCase();
+    const isCompletedRequest = existingStatus === "completed";
+
+    if (isCompletedRequest && !finalPrice) {
       return jsonResponse(400, {
         error: "Final price is required for completed requests."
       });
@@ -160,8 +163,8 @@ exports.handler = async (event) => {
       phone,
       eventDate,
       quantity,
-      estimatedPrice: existingRequest.status === "completed" ? existingRequest.estimatedPrice : estimatedPrice,
-      finalPrice: existingRequest.status === "completed" ? finalPrice : existingRequest.finalPrice,
+      estimatedPrice: isCompletedRequest ? existingRequest.estimatedPrice : estimatedPrice,
+      finalPrice: isCompletedRequest ? finalPrice : existingRequest.finalPrice,
       theme,
       inspo,
       details,

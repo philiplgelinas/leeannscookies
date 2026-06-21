@@ -40,6 +40,7 @@ function normalizeCookieRequest(request) {
   const eventDate = normalizeString(request?.eventDate);
   const quantity = normalizeQuantity(request?.quantity);
   const estimatedPrice = normalizeString(request?.estimatedPrice);
+  const finalPrice = normalizeString(request?.finalPrice);
   const theme = normalizeString(request?.theme);
   const inspo = normalizeString(request?.inspo);
   const details = normalizeString(request?.details);
@@ -60,6 +61,7 @@ function normalizeCookieRequest(request) {
     eventDate,
     quantity,
     estimatedPrice,
+    finalPrice,
     theme,
     inspo,
     details,
