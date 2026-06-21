@@ -1369,6 +1369,7 @@
       eventDate: normalizeString(request?.eventDate),
       quantity: Number.parseInt(request?.quantity, 10),
       estimatedPrice: normalizeString(request?.estimatedPrice),
+      finalPrice: normalizeString(request?.finalPrice),
       theme: normalizeString(request?.theme),
       inspo: normalizeString(request?.inspo),
       details: normalizeString(request?.details),
@@ -1437,6 +1438,24 @@
     });
   }
 
+  function promptForFinalPrice(request) {
+    const defaultValue = request.finalPrice || request.estimatedPrice || "";
+    const enteredValue = window.prompt("Enter the final price for this completed order:", defaultValue);
+
+    if (enteredValue === null) {
+      return "";
+    }
+
+    const finalPriceValue = parseEstimatedPrice(enteredValue);
+
+    if (!Number.isFinite(finalPriceValue) || finalPriceValue <= 0) {
+      window.alert("Please enter a valid final price greater than $0.");
+      return promptForFinalPrice(request);
+    }
+
+    return formatCurrency(finalPriceValue);
+  }
+
   function updateTotalEarned(pastRequests) {
     if (!totalEarned) return;
 
@@ -1445,7 +1464,7 @@
     if (!valueEl) return;
 
     const total = pastRequests.reduce((sum, request) =>
-      sum + parseEstimatedPrice(request.estimatedPrice), 0
+      sum + parseEstimatedPrice(request.finalPrice || request.estimatedPrice), 0
     );
 
     valueEl.textContent = formatCurrency(total);
@@ -1812,7 +1831,17 @@
       completeBtn.type = "button";
       completeBtn.className = "btn btn-success admin-request-action-btn";
       completeBtn.textContent = "Complete";
-      completeBtn.addEventListener("click", () => updateCookieRequestStatus(request.id, "completed"));
+      completeBtn.addEventListener("click", () => {
+        const finalPrice = promptForFinalPrice(request);
+
+        if (!finalPrice) {
+          return;
+        }
+
+        updateCookieRequestStatus(request.id, "completed", {
+          finalPrice
+        });
+      });
 
       actions.appendChild(completeBtn);
     }
@@ -1864,7 +1893,7 @@
       createRequestDetail("Email", request.email),
       createRequestDetail("Phone", request.phone),
       createRequestDetail("Quantity", Number.isInteger(request.quantity) ? String(request.quantity) : ""),
-      createRequestDetail("Estimated Price", request.estimatedPrice),
+      createRequestDetail(request.status === "completed" ? "Final Price" : "Estimated Price", request.status === "completed" ? request.finalPrice : request.estimatedPrice),
       createRequestDetail("Theme", request.theme),
       createRequestLinkDetail("Inspiration Link", request.inspo)
     );
@@ -1993,7 +2022,7 @@
     }
   }
 
-  async function updateCookieRequestStatus(id, status) {
+  async function updateCookieRequestStatus(id, status, extraValues = {}) {
     setStatus(cookieRequestsStatus, "Updating request...");
 
     try {
@@ -2004,7 +2033,8 @@
         },
         body: JSON.stringify({
           id,
-          status
+          status,
+          ...extraValues
         })
       });
 

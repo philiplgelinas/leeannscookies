@@ -32,6 +32,20 @@ function normalizeStoredRequests(data) {
   return data.requests.filter(request => request && request.id);
 }
 
+function normalizeFinalPrice(value) {
+  const rawValue = normalizeString(value);
+  const numericValue = Number.parseFloat(rawValue.replace(/[^0-9.]/g, ""));
+
+  if (!Number.isFinite(numericValue) || numericValue < 0) {
+    return "";
+  }
+
+  return numericValue.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD"
+  });
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return jsonResponse(405, {
@@ -60,6 +74,7 @@ exports.handler = async (event) => {
   const body = parseBody(event);
   const id = normalizeString(body.id);
   const status = normalizeStatus(body.status);
+  const finalPrice = normalizeFinalPrice(body.finalPrice);
 
   if (!id) {
     return jsonResponse(400, {
@@ -86,11 +101,23 @@ exports.handler = async (event) => {
       });
     }
 
-    requests[requestIndex] = {
+    const updatedRequest = {
       ...requests[requestIndex],
       status,
       updatedAt: new Date().toISOString()
     };
+
+    if (status === "completed") {
+      if (!finalPrice) {
+        return jsonResponse(400, {
+          error: "Final price is required when completing a request."
+        });
+      }
+
+      updatedRequest.finalPrice = finalPrice;
+    }
+
+    requests[requestIndex] = updatedRequest;
 
     await store.setJSON("cookie-requests", {
       requests
