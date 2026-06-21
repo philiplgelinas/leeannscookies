@@ -159,6 +159,34 @@ function normalizeAnalyticsEvent(data) {
   };
 }
 
+function getEventFingerprint(event) {
+  return JSON.stringify({
+    type: event.type,
+    path: event.path,
+    visitorId: event.visitorId,
+    sessionId: event.sessionId,
+    metadata: event.metadata || {}
+  });
+}
+
+function isDuplicateRecentEvent(newEvent, existingEvents) {
+  const duplicateWindowMs = 2500;
+  const newEventTime = new Date(newEvent.createdAt).getTime();
+  const newEventFingerprint = getEventFingerprint(newEvent);
+
+  return existingEvents.some(existingEvent => {
+    const existingEventTime = new Date(existingEvent.createdAt).getTime();
+
+    if (!Number.isFinite(existingEventTime)) {
+      return false;
+    }
+
+    const isRecent = Math.abs(newEventTime - existingEventTime) <= duplicateWindowMs;
+
+    return isRecent && getEventFingerprint(existingEvent) === newEventFingerprint;
+  });
+}
+
 function normalizeStoredEvents(data) {
   if (!data || !Array.isArray(data.events)) {
     return [];
@@ -189,6 +217,13 @@ exports.handler = async (event) => {
     const store = getSiteContentStore();
     const savedData = await store.get("analytics-events", { type: "json" });
     const existingEvents = normalizeStoredEvents(savedData);
+
+    if (isDuplicateRecentEvent(normalized.event, existingEvents)) {
+      return jsonResponse(200, {
+        success: true,
+        duplicate: true
+      });
+    }
 
     const events = [
       normalized.event,

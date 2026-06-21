@@ -1224,7 +1224,6 @@
   }
 
   form?.addEventListener("focusin", trackRequestFormStart);
-  form?.addEventListener("input", trackRequestFormStart);
 
   quantityInput?.addEventListener("input", updatePriceEstimate);
 

@@ -8,7 +8,7 @@ const {
 const defaultDays = 30;
 const maxDays = 365;
 const maxStoredEvents = 5000;
-const maxRecentActivity = 100;
+const maxRecentActivity = 10;
 
 const eventLabels = {
   page_view: "Page View",
