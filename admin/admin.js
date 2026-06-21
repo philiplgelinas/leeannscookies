@@ -1464,7 +1464,7 @@
     if (!valueEl) return;
 
     const total = pastRequests.reduce((sum, request) =>
-      sum + parseEstimatedPrice(request.finalPrice || request.estimatedPrice), 0
+      sum + parseEstimatedPrice(request.finalPrice), 0
     );
 
     valueEl.textContent = formatCurrency(total);
