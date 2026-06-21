@@ -244,8 +244,8 @@ function summarizeAnalytics(events, days) {
   const visitors = getUniqueCount(pageViewEvents.length ? pageViewEvents : periodEvents, "visitorId");
   const pageViews = pageViewEvents.length;
   const requestSubmissions = requestSubmitEvents.length;
-  const requestConversionRate = pageViews
-    ? formatRate((requestSubmissions / pageViews) * 100)
+  const requestConversionRate = visitors
+    ? formatRate((requestSubmissions / visitors) * 100)
     : 0;
 
   const popularCategories = groupEventsByMetadata(categoryFilterEvents, "filter");
