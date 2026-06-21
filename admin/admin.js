@@ -16,7 +16,17 @@
   const saveChangesBtn = document.getElementById("saveChangesBtn");
   const adminTabButtons = document.querySelectorAll("[data-admin-tab]");
   const dashboardPanel = document.getElementById("dashboardPanel");
+  const schedulePanel = document.getElementById("schedulePanel");
   const siteBuilderPanel = document.getElementById("siteBuilderPanel");
+  const scheduleStatus = document.getElementById("scheduleStatus");
+  const noticePeriodDaysInput = document.getElementById("noticePeriodDays");
+  const weeklyCapacityCookiesInput = document.getElementById("weeklyCapacityCookies");
+  const scheduleMonthLabel = document.getElementById("scheduleMonthLabel");
+  const prevScheduleMonthBtn = document.getElementById("prevScheduleMonthBtn");
+  const nextScheduleMonthBtn = document.getElementById("nextScheduleMonthBtn");
+  const scheduleCalendarDays = document.getElementById("scheduleCalendarDays");
+  const saveScheduleBtn = document.getElementById("saveScheduleBtn");
+  const revertScheduleBtn = document.getElementById("revertScheduleBtn");
   const cookieRequestsStatus = document.getElementById("cookieRequestsStatus");
   const pendingRequestsGrid = document.getElementById("pendingRequestsGrid");
   const upcomingRequestsGrid = document.getElementById("upcomingRequestsGrid");
@@ -180,6 +190,12 @@
 
   const defaultFeaturedShowcaseId = "showcase-rehearsal-dinner";
 
+  const defaultSchedule = {
+    noticePeriodDays: 0,
+    weeklyCapacityCookies: 0,
+    vacationDays: []
+  };
+
   const showcaseTagOptions = [
     { value: "minimal", label: "Minimal" },
     { value: "floral", label: "Floral" },
@@ -202,6 +218,10 @@
   let originalAboutBakerParagraphs = [];
   let draftAboutBakerParagraphs = [];
   let cookieRequests = [];
+  let originalSchedule = null;
+  let draftSchedule = null;
+  let scheduleLoaded = false;
+  let scheduleCalendarDate = new Date();
   let analyticsLoaded = false;
   let draggedPricingId = "";
   let draggedShowcaseId = "";
@@ -297,6 +317,10 @@
       dashboardPanel.hidden = tabName !== "dashboard";
     }
 
+    if (schedulePanel) {
+      schedulePanel.hidden = tabName !== "schedule";
+    }
+
     if (analyticsPanel) {
       analyticsPanel.hidden = tabName !== "analytics";
     }
@@ -324,6 +348,293 @@
 
   function normalizeString(value) {
     return String(value || "").trim();
+  }
+
+  function cloneSchedule(schedule) {
+    const normalizedSchedule = normalizeScheduleData(schedule || defaultSchedule);
+
+    return {
+      ...normalizedSchedule,
+      vacationDays: [...normalizedSchedule.vacationDays]
+    };
+  }
+
+  function normalizeNonNegativeInteger(value, fallbackValue = 0) {
+    const numberValue = Number.parseInt(value, 10);
+
+    return Number.isInteger(numberValue) && numberValue >= 0 ? numberValue : fallbackValue;
+  }
+
+  function isValidDateKey(value) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(normalizeString(value));
+  }
+
+  function normalizeVacationDays(vacationDays) {
+    if (!Array.isArray(vacationDays)) {
+      return [];
+    }
+
+    return [...new Set(
+      vacationDays
+        .map(day => normalizeString(day))
+        .filter(isValidDateKey)
+    )].sort();
+  }
+
+  function normalizeScheduleData(data) {
+    return {
+      noticePeriodDays: normalizeNonNegativeInteger(data?.noticePeriodDays, defaultSchedule.noticePeriodDays),
+      weeklyCapacityCookies: normalizeNonNegativeInteger(data?.weeklyCapacityCookies, defaultSchedule.weeklyCapacityCookies),
+      vacationDays: normalizeVacationDays(data?.vacationDays)
+    };
+  }
+
+  function scheduleToComparableString(schedule) {
+    const normalizedSchedule = normalizeScheduleData(schedule || defaultSchedule);
+
+    return JSON.stringify({
+      noticePeriodDays: normalizedSchedule.noticePeriodDays,
+      weeklyCapacityCookies: normalizedSchedule.weeklyCapacityCookies,
+      vacationDays: normalizedSchedule.vacationDays
+    });
+  }
+
+  function getDateKeyFromDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  }
+
+  function getScheduleMonthLabel(date) {
+    return date.toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric"
+    });
+  }
+
+  function addCalendarDays(date, dayCount) {
+    const nextDate = new Date(date);
+
+    nextDate.setDate(nextDate.getDate() + dayCount);
+
+    return nextDate;
+  }
+
+  function hasScheduleChanges() {
+    return scheduleToComparableString(originalSchedule) !== scheduleToComparableString(draftSchedule);
+  }
+
+  function updateScheduleActionButtons() {
+    const hasChanges = hasScheduleChanges();
+
+    if (saveScheduleBtn) {
+      saveScheduleBtn.disabled = !hasChanges;
+    }
+
+    if (revertScheduleBtn) {
+      revertScheduleBtn.disabled = !hasChanges;
+    }
+  }
+
+  function ensureDraftSchedule() {
+    if (!draftSchedule) {
+      draftSchedule = cloneSchedule(defaultSchedule);
+    }
+
+    if (!originalSchedule) {
+      originalSchedule = cloneSchedule(defaultSchedule);
+    }
+  }
+
+  function updateDraftScheduleNumber(fieldName, value) {
+    ensureDraftSchedule();
+
+    draftSchedule[fieldName] = normalizeNonNegativeInteger(value, 0);
+
+    updateScheduleActionButtons();
+    setStatus(scheduleStatus, "");
+  }
+
+  function toggleVacationDay(dateKey) {
+    ensureDraftSchedule();
+
+    const vacationDays = new Set(draftSchedule.vacationDays);
+
+    if (vacationDays.has(dateKey)) {
+      vacationDays.delete(dateKey);
+    } else {
+      vacationDays.add(dateKey);
+    }
+
+    draftSchedule.vacationDays = [...vacationDays].sort();
+
+    renderScheduleCalendar();
+    updateScheduleActionButtons();
+    setStatus(scheduleStatus, "");
+  }
+
+  function renderScheduleSettings() {
+    ensureDraftSchedule();
+
+    if (noticePeriodDaysInput) {
+      noticePeriodDaysInput.value = draftSchedule.noticePeriodDays;
+    }
+
+    if (weeklyCapacityCookiesInput) {
+      weeklyCapacityCookiesInput.value = draftSchedule.weeklyCapacityCookies;
+    }
+  }
+
+  function renderScheduleCalendar() {
+    ensureDraftSchedule();
+
+    if (!scheduleCalendarDays) {
+      return;
+    }
+
+    scheduleCalendarDays.innerHTML = "";
+
+    const visibleMonth = scheduleCalendarDate.getMonth();
+    const monthStart = new Date(scheduleCalendarDate.getFullYear(), scheduleCalendarDate.getMonth(), 1);
+    const calendarStart = addCalendarDays(monthStart, -monthStart.getDay());
+    const todayKey = getTodayDateValue();
+    const vacationDays = new Set(draftSchedule.vacationDays);
+
+    if (scheduleMonthLabel) {
+      scheduleMonthLabel.textContent = getScheduleMonthLabel(scheduleCalendarDate);
+    }
+
+    for (let index = 0; index < 42; index++) {
+      const date = addCalendarDays(calendarStart, index);
+      const dateKey = getDateKeyFromDate(date);
+      const isVacationDay = vacationDays.has(dateKey);
+
+      const dayButton = document.createElement("button");
+      dayButton.type = "button";
+      dayButton.className = "admin-schedule-day";
+      dayButton.classList.toggle("is-outside", date.getMonth() !== visibleMonth);
+      dayButton.classList.toggle("is-today", dateKey === todayKey);
+      dayButton.classList.toggle("is-vacation", isVacationDay);
+      dayButton.setAttribute("aria-pressed", isVacationDay ? "true" : "false");
+      dayButton.setAttribute("aria-label", `${date.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric"
+      })}${isVacationDay ? ", vacation day" : ""}`);
+
+      const dayNumber = document.createElement("span");
+      dayNumber.className = "admin-schedule-day-number";
+      dayNumber.textContent = String(date.getDate());
+
+      dayButton.appendChild(dayNumber);
+
+      if (isVacationDay) {
+        const badge = document.createElement("span");
+        badge.className = "admin-schedule-day-badge";
+        badge.textContent = "Vacation";
+        dayButton.appendChild(badge);
+      }
+
+      dayButton.addEventListener("click", () => toggleVacationDay(dateKey));
+
+      scheduleCalendarDays.appendChild(dayButton);
+    }
+  }
+
+  function renderSchedule() {
+    renderScheduleSettings();
+    renderScheduleCalendar();
+    updateScheduleActionButtons();
+  }
+
+  async function loadSchedule() {
+    const data = await fetchJson("/.netlify/functions/get-schedule");
+
+    return normalizeScheduleData(data?.schedule);
+  }
+
+  async function refreshSchedule(force = false) {
+    if (!schedulePanel) {
+      return;
+    }
+
+    if (scheduleLoaded && !force) {
+      renderSchedule();
+      return;
+    }
+
+    setStatus(scheduleStatus, "Loading schedule...");
+
+    try {
+      const schedule = await loadSchedule();
+
+      originalSchedule = cloneSchedule(schedule);
+      draftSchedule = cloneSchedule(schedule);
+      scheduleLoaded = true;
+
+      renderSchedule();
+      setStatus(scheduleStatus, "");
+    } catch (err) {
+      console.warn("Could not load schedule.", err);
+
+      originalSchedule = cloneSchedule(defaultSchedule);
+      draftSchedule = cloneSchedule(defaultSchedule);
+      scheduleLoaded = true;
+
+      renderSchedule();
+      setStatus(scheduleStatus, err.message || "Could not load schedule.", "error");
+    }
+  }
+
+  async function saveSchedule() {
+    ensureDraftSchedule();
+
+    setStatus(scheduleStatus, "Saving schedule...");
+
+    try {
+      if (saveScheduleBtn) saveScheduleBtn.disabled = true;
+      if (revertScheduleBtn) revertScheduleBtn.disabled = true;
+
+      const data = await fetchJson("/.netlify/functions/save-schedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(draftSchedule)
+      });
+
+      const savedSchedule = normalizeScheduleData(data?.schedule);
+
+      originalSchedule = cloneSchedule(savedSchedule);
+      draftSchedule = cloneSchedule(savedSchedule);
+      scheduleLoaded = true;
+
+      renderSchedule();
+      setStatus(scheduleStatus, "Schedule saved.", "success");
+    } catch (err) {
+      console.warn("Could not save schedule.", err);
+      setStatus(scheduleStatus, err.message || "Could not save schedule.", "error");
+      updateScheduleActionButtons();
+    }
+  }
+
+  function revertSchedule() {
+    draftSchedule = cloneSchedule(originalSchedule || defaultSchedule);
+    renderSchedule();
+    setStatus(scheduleStatus, "Schedule reverted.", "success");
+  }
+
+  function changeScheduleMonth(monthOffset) {
+    scheduleCalendarDate = new Date(
+      scheduleCalendarDate.getFullYear(),
+      scheduleCalendarDate.getMonth() + monthOffset,
+      1
+    );
+
+    renderScheduleCalendar();
   }
 
   function normalizePricingData(data) {
@@ -2603,8 +2914,12 @@
     originalAboutBakerParagraphs = [];
     draftAboutBakerParagraphs = [];
     cookieRequests = [];
+    originalSchedule = null;
+    draftSchedule = null;
+    scheduleLoaded = false;
     activeEditRequest = null;
     renderCookieRequests();
+    setStatus(scheduleStatus, "");
     setStatus(cookieRequestsStatus, "");
     showLoginView();
   });
@@ -2862,6 +3177,10 @@
         refreshCookieRequests();
       }
 
+      if (tabName === "schedule") {
+        refreshSchedule();
+      }
+
       if (tabName === "analytics") {
         refreshAnalytics();
       }
@@ -2877,6 +3196,25 @@
       analyticsLoaded = false;
     }
   });
+
+  noticePeriodDaysInput?.addEventListener("input", () => {
+    updateDraftScheduleNumber("noticePeriodDays", noticePeriodDaysInput.value);
+  });
+
+  weeklyCapacityCookiesInput?.addEventListener("input", () => {
+    updateDraftScheduleNumber("weeklyCapacityCookies", weeklyCapacityCookiesInput.value);
+  });
+
+  prevScheduleMonthBtn?.addEventListener("click", () => {
+    changeScheduleMonth(-1);
+  });
+
+  nextScheduleMonthBtn?.addEventListener("click", () => {
+    changeScheduleMonth(1);
+  });
+
+  saveScheduleBtn?.addEventListener("click", saveSchedule);
+  revertScheduleBtn?.addEventListener("click", revertSchedule);
 
   checkSession();
 })();

@@ -99,6 +99,10 @@
         Dashboard
       </button>
 
+      <button class="admin-tab" id="scheduleTab" type="button" data-admin-tab="schedule" role="tab" aria-selected="false" aria-controls="schedulePanel">
+        Schedule
+      </button>
+
       <button class="admin-tab" id="analyticsTab" type="button" data-admin-tab="analytics" role="tab" aria-selected="false" aria-controls="analyticsPanel">
         Analytics
       </button>
@@ -152,6 +156,84 @@
           </div>
 
           <div class="admin-request-grid" id="pastRequestsGrid"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="admin-tab-panel" id="schedulePanel" role="tabpanel" aria-labelledby="scheduleTab" hidden>
+      <section class="admin-section">
+        <div class="admin-section-heading">
+          <div>
+            <p class="admin-eyebrow mb-2">Availability</p>
+            <h2 class="h4 fw-semibold mb-1">Schedule</h2>
+            <p class="text-secondary mb-0">
+              Manage notice period, weekly cookie capacity, and vacation days.
+            </p>
+          </div>
+        </div>
+
+        <div class="admin-status mb-3" id="scheduleStatus" role="status" aria-live="polite"></div>
+
+        <div class="admin-schedule-controls">
+          <div class="admin-schedule-setting-card">
+            <label class="admin-schedule-label" for="noticePeriodDays">Notice Period</label>
+            <div class="admin-schedule-input-row">
+              <input class="form-control form-control-lg" id="noticePeriodDays" type="number" min="0" step="1" placeholder="0" />
+              <span class="admin-schedule-input-unit">days</span>
+            </div>
+            <p class="text-secondary small mb-0">Minimum number of days needed before an order date.</p>
+          </div>
+
+          <div class="admin-schedule-setting-card">
+            <label class="admin-schedule-label" for="weeklyCapacityCookies">Weekly Capacity</label>
+            <div class="admin-schedule-input-row">
+              <input class="form-control form-control-lg" id="weeklyCapacityCookies" type="number" min="0" step="1" placeholder="0" />
+              <span class="admin-schedule-input-unit">cookies</span>
+            </div>
+            <p class="text-secondary small mb-0">Total number of cookies available per week.</p>
+          </div>
+        </div>
+
+        <div class="admin-schedule-calendar-card">
+          <div class="admin-schedule-calendar-top">
+            <div>
+              <p class="admin-eyebrow mb-2">Vacation Days</p>
+              <h3 class="h5 fw-semibold mb-1" id="scheduleMonthLabel">Month</h3>
+              <p class="text-secondary small mb-0">Click any day to mark or unmark it as a vacation day.</p>
+            </div>
+
+            <div class="admin-schedule-month-controls">
+              <button class="admin-schedule-month-btn" id="prevScheduleMonthBtn" type="button" aria-label="Previous month">
+                <i class="bi bi-chevron-left"></i>
+              </button>
+
+              <button class="admin-schedule-month-btn" id="nextScheduleMonthBtn" type="button" aria-label="Next month">
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="admin-schedule-weekdays" aria-hidden="true">
+            <div>Sun</div>
+            <div>Mon</div>
+            <div>Tue</div>
+            <div>Wed</div>
+            <div>Thu</div>
+            <div>Fri</div>
+            <div>Sat</div>
+          </div>
+
+          <div class="admin-schedule-days" id="scheduleCalendarDays"></div>
+        </div>
+
+        <div class="admin-schedule-actions">
+          <button class="btn btn-outline-dark btn-lg" id="revertScheduleBtn" type="button" disabled>
+            Revert Schedule
+          </button>
+
+          <button class="btn btn-dark btn-lg" id="saveScheduleBtn" type="button" disabled>
+            Save Schedule
+          </button>
         </div>
       </section>
     </div>
