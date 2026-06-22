@@ -1450,6 +1450,7 @@ body{
 
 .admin-schedule-day{
   position: relative;
+  container-type: inline-size;
   min-height: 104px;
   padding: 12px;
   border: 1px solid var(--admin-border);
@@ -1502,6 +1503,17 @@ body{
   font-weight: 800;
   letter-spacing: .05em;
   text-transform: uppercase;
+}
+
+@container (max-width: 84px){
+  .admin-schedule-day-badge{
+    height: 8px;
+    min-height: 0;
+    padding: 0;
+    color: transparent;
+    font-size: 0;
+    overflow: hidden;
+  }
 }
 
 .admin-schedule-actions{
