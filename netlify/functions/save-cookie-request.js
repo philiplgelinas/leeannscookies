@@ -2,6 +2,22 @@ const crypto = require("crypto");
 
 const { getSiteContentStore } = require("./_blob-store");
 
+const defaultPricing = [
+  { id: "set-6", quantity: 6, price: 18 },
+  { id: "set-12", quantity: 12, price: 33 },
+  { id: "set-24", quantity: 24, price: 60 },
+  { id: "set-48", quantity: 48, price: 108 },
+  { id: "set-96", quantity: 96, price: 192 }
+];
+
+const defaultPromoCodes = [
+  {
+    id: "promo-share15",
+    code: "SHARE15",
+    discountPercent: 15
+  }
+];
+
 function jsonResponse(statusCode, body) {
   return {
     statusCode,
@@ -26,15 +42,138 @@ function normalizeString(value) {
 }
 
 function normalizePromoCode(value) {
-  const promoCode = normalizeString(value).replace(/\s+/g, "").toUpperCase();
+  return normalizeString(value).replace(/\s+/g, "").toUpperCase();
+}
 
-  return promoCode === "SHARE15" ? promoCode : "";
+function normalizeDiscountPercent(value) {
+  const discountPercent = Number.parseInt(value, 10);
+
+  return Number.isInteger(discountPercent) && discountPercent > 0 && discountPercent <= 100
+    ? discountPercent
+    : null;
 }
 
 function normalizeQuantity(value) {
   const quantity = Number.parseInt(value, 10);
 
   return Number.isInteger(quantity) && quantity > 0 ? quantity : null;
+}
+
+function normalizePrice(value) {
+  const price = Number.parseFloat(value);
+
+  return Number.isFinite(price) && price > 0 ? price : null;
+}
+
+function roundCurrency(value) {
+  return Math.round(value * 100) / 100;
+}
+
+function formatEstimatedPrice(price) {
+  return price.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD"
+  });
+}
+
+function normalizePricingData(data) {
+  const pricing = Array.isArray(data?.pricing) ? data.pricing : defaultPricing;
+
+  const normalized = pricing
+    .map(item => ({
+      id: normalizeString(item.id) || `set-${item.quantity}`,
+      quantity: normalizeQuantity(item.quantity),
+      price: normalizePrice(item.price)
+    }))
+    .filter(item => item.id && item.quantity && item.price)
+    .sort((a, b) => a.quantity - b.quantity);
+
+  return normalized.length ? normalized : defaultPricing;
+}
+
+function normalizePromoCodesData(data) {
+  const hasSavedPromoCodes = data && Array.isArray(data.promoCodes);
+  const promoCodes = hasSavedPromoCodes ? data.promoCodes : defaultPromoCodes;
+  const promoCodeMap = new Map();
+
+  promoCodes.forEach(promoCode => {
+    const code = normalizePromoCode(promoCode.code);
+    const discountPercent = normalizeDiscountPercent(promoCode.discountPercent);
+
+    if (!code || !Number.isInteger(discountPercent)) {
+      return;
+    }
+
+    promoCodeMap.set(code, {
+      id: normalizeString(promoCode.id) || `promo-${code.toLowerCase()}`,
+      code,
+      discountPercent
+    });
+  });
+
+  return Array.from(promoCodeMap.values());
+}
+
+function calculateEstimatedPrice(quantity, pricing) {
+  if (!quantity || !Array.isArray(pricing) || !pricing.length) {
+    return null;
+  }
+
+  const sortedPricing = [...pricing].sort((a, b) => a.quantity - b.quantity);
+  let selectedPricing = sortedPricing[0];
+
+  sortedPricing.forEach(item => {
+    if (quantity >= item.quantity) {
+      selectedPricing = item;
+    }
+  });
+
+  const unitPrice = selectedPricing.price / selectedPricing.quantity;
+
+  return roundCurrency(quantity * unitPrice);
+}
+
+function getPromoPriceDetails(quantity, promoCodeValue, pricing, promoCodes) {
+  const originalEstimatedPriceAmount = calculateEstimatedPrice(quantity, pricing);
+
+  if (!Number.isFinite(originalEstimatedPriceAmount)) {
+    return {
+      valid: false,
+      error: "Estimated price could not be calculated."
+    };
+  }
+
+  const normalizedPromoCode = normalizePromoCode(promoCodeValue);
+
+  if (!normalizedPromoCode) {
+    return {
+      valid: true,
+      estimatedPrice: formatEstimatedPrice(originalEstimatedPriceAmount),
+      originalEstimatedPrice: formatEstimatedPrice(originalEstimatedPriceAmount),
+      discountAmount: "",
+      promoCode: ""
+    };
+  }
+
+  const matchingPromoCode = promoCodes.find(promoCode => promoCode.code === normalizedPromoCode);
+
+  if (!matchingPromoCode) {
+    return {
+      valid: false,
+      error: "Promo code is not valid."
+    };
+  }
+
+  const discountAmountValue = roundCurrency(originalEstimatedPriceAmount * (matchingPromoCode.discountPercent / 100));
+  const discountedEstimatedPriceAmount = roundCurrency(Math.max(0, originalEstimatedPriceAmount - discountAmountValue));
+
+  return {
+    valid: true,
+    estimatedPrice: formatEstimatedPrice(discountedEstimatedPriceAmount),
+    originalEstimatedPrice: formatEstimatedPrice(originalEstimatedPriceAmount),
+    discountAmount: formatEstimatedPrice(discountAmountValue),
+    promoCode: matchingPromoCode.code
+  };
 }
 
 function normalizeImages(images) {
@@ -228,11 +367,11 @@ function buildCookieRequestEmailHtml(request) {
       <h3>Inspiration Images</h3>
       ${buildImageLinksHtml(request.images)}
 
-        <div style="margin-top: 28px;">
-          <a
-            href="https://leeannscookiesnj.com/admin/"
-            style="display: inline-block; padding: 12px 20px; background: #111111; color: #ffffff; text-decoration: none; border-radius: 999px; font-weight: bold;"
-          >
+      <div style="margin-top: 28px;">
+        <a
+          href="https://leeannscookiesnj.com/admin/"
+          style="display: inline-block; padding: 12px 20px; background: #111111; color: #ffffff; text-decoration: none; border-radius: 999px; font-weight: bold;"
+        >
           View in Dashboard
         </a>
       </div>
@@ -272,16 +411,12 @@ async function sendNewCookieRequestNotification(request) {
   }
 }
 
-function normalizeCookieRequest(data) {
+function normalizeCookieRequest(data, pricing, promoCodes) {
   const name = normalizeString(data.name);
   const email = normalizeString(data.email).toLowerCase();
   const phone = normalizeString(data.phone);
   const eventDate = normalizeString(data.eventDate);
   const quantity = normalizeQuantity(data.quantity);
-  const estimatedPrice = normalizeString(data.estimatedPrice);
-  const originalEstimatedPrice = normalizeString(data.originalEstimatedPrice) || estimatedPrice;
-  const promoCode = normalizePromoCode(data.promoCode);
-  const discountAmount = promoCode ? normalizeString(data.discountAmount) : "";
   const theme = normalizeString(data.theme);
   const inspo = normalizeString(data.inspo);
   const details = normalizeString(data.details);
@@ -329,6 +464,15 @@ function normalizeCookieRequest(data) {
     };
   }
 
+  const promoPriceDetails = getPromoPriceDetails(quantity, data.promoCode, pricing, promoCodes);
+
+  if (!promoPriceDetails.valid) {
+    return {
+      valid: false,
+      error: promoPriceDetails.error
+    };
+  }
+
   return {
     valid: true,
     request: {
@@ -340,10 +484,10 @@ function normalizeCookieRequest(data) {
       phone,
       eventDate,
       quantity,
-      estimatedPrice,
-      originalEstimatedPrice,
-      discountAmount,
-      promoCode,
+      estimatedPrice: promoPriceDetails.estimatedPrice,
+      originalEstimatedPrice: promoPriceDetails.originalEstimatedPrice,
+      discountAmount: promoPriceDetails.discountAmount,
+      promoCode: promoPriceDetails.promoCode,
       theme,
       inspo,
       details,
@@ -368,17 +512,26 @@ exports.handler = async (event) => {
   }
 
   const body = parseBody(event);
-  const normalized = normalizeCookieRequest(body);
-
-  if (!normalized.valid) {
-    return jsonResponse(400, {
-      error: normalized.error
-    });
-  }
 
   try {
     const store = getSiteContentStore();
-    const savedData = await store.get("cookie-requests", { type: "json" });
+
+    const [savedData, pricingData, promoCodesData] = await Promise.all([
+      store.get("cookie-requests", { type: "json" }),
+      store.get("pricing", { type: "json" }),
+      store.get("promo-codes", { type: "json" })
+    ]);
+
+    const pricing = normalizePricingData(pricingData);
+    const promoCodes = normalizePromoCodesData(promoCodesData);
+    const normalized = normalizeCookieRequest(body, pricing, promoCodes);
+
+    if (!normalized.valid) {
+      return jsonResponse(400, {
+        error: normalized.error
+      });
+    }
+
     const existingRequests = normalizeStoredRequests(savedData);
 
     const requests = [

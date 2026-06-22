@@ -25,8 +25,15 @@
     weeklyScheduledCookies: {}
   };
 
-  const activePromoCode = "SHARE15";
-  const activePromoDiscountRate = 0.15;
+  const defaultPromoCodes = [
+    {
+      id: "promo-share15",
+      code: "SHARE15",
+      discountPercent: 15
+    }
+  ];
+
+  let activePromoCodes = [...defaultPromoCodes];
 
   let requestAvailability = {
     ...defaultRequestAvailability,
@@ -34,7 +41,7 @@
     weeklyScheduledCookies: {}
   };
 
-  let appliedPromoCode = "";
+  let appliedPromoCode = null;
   let requestFormStartTracked = false;
 
   function createAnalyticsId(prefix) {
@@ -750,12 +757,50 @@
     return normalizeString(value).replace(/\s+/g, "").toUpperCase();
   }
 
+  function normalizeDiscountPercent(value) {
+    const discountPercent = Number.parseInt(value, 10);
+
+    return Number.isInteger(discountPercent) && discountPercent > 0 && discountPercent <= 100
+      ? discountPercent
+      : null;
+  }
+
+  function normalizePromoCodesData(data) {
+    const promoCodes = Array.isArray(data?.promoCodes) ? data.promoCodes : defaultPromoCodes;
+    const promoCodeMap = new Map();
+
+    promoCodes.forEach(promoCode => {
+      const code = normalizePromoCode(promoCode.code);
+      const discountPercent = normalizeDiscountPercent(promoCode.discountPercent);
+
+      if (!code || !Number.isInteger(discountPercent)) {
+        return;
+      }
+
+      promoCodeMap.set(code, {
+        id: normalizeString(promoCode.id) || `promo-${code.toLowerCase()}`,
+        code,
+        discountPercent
+      });
+    });
+
+    return Array.from(promoCodeMap.values());
+  }
+
+  function findActivePromoCode(code) {
+    const normalizedCode = normalizePromoCode(code);
+
+    return activePromoCodes.find(promoCode => promoCode.code === normalizedCode) || null;
+  }
+
   function getPromoDiscountAmount(price) {
-    if (appliedPromoCode !== activePromoCode || !Number.isFinite(price) || price <= 0) {
+    if (!appliedPromoCode || !Number.isFinite(price) || price <= 0) {
       return 0;
     }
 
-    return price * activePromoDiscountRate;
+    const discountAmount = price * (appliedPromoCode.discountPercent / 100);
+
+    return Math.round(discountAmount * 100) / 100;
   }
 
   function setPromoCodeStatus(message = "", type = "") {
@@ -773,7 +818,11 @@
       return;
     }
 
-    promoCodeBadge.hidden = appliedPromoCode !== activePromoCode;
+    promoCodeBadge.hidden = !appliedPromoCode;
+
+    if (appliedPromoCode) {
+      promoCodeBadge.textContent = `${appliedPromoCode.discountPercent}% off`;
+    }
   }
 
   function validatePromoCode(showMessage = false) {
@@ -788,22 +837,24 @@
     }
 
     if (!promoCode) {
-      appliedPromoCode = "";
+      appliedPromoCode = null;
       promoCodeInput.setCustomValidity("");
       setPromoCodeStatus("");
       updatePromoCodeBadge();
       return true;
     }
 
-    if (promoCode === activePromoCode) {
-      appliedPromoCode = activePromoCode;
+    const matchingPromoCode = findActivePromoCode(promoCode);
+
+    if (matchingPromoCode) {
+      appliedPromoCode = matchingPromoCode;
       promoCodeInput.setCustomValidity("");
-      setPromoCodeStatus("Promo applied — 15% off your estimated price.", "success");
+      setPromoCodeStatus(`Promo applied — ${matchingPromoCode.discountPercent}% off your estimated price.`, "success");
       updatePromoCodeBadge();
       return true;
     }
 
-    appliedPromoCode = "";
+    appliedPromoCode = null;
     promoCodeInput.setCustomValidity("Please enter a valid promo code or leave this field blank.");
 
     if (showMessage) {
@@ -814,6 +865,28 @@
 
     updatePromoCodeBadge();
     return false;
+  }
+
+  async function fetchPromoCodes() {
+    try {
+      const response = await fetch("/.netlify/functions/get-promo-codes", {
+        headers: {
+          Accept: "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json();
+
+      activePromoCodes = normalizePromoCodesData(data);
+      validatePromoCode(false);
+      updatePriceEstimate();
+    } catch (err) {
+      console.warn("Could not load promo codes.", err);
+    }
   }
 
   function normalizeVacationDays(vacationDays) {
@@ -1073,7 +1146,7 @@
     }
 
     if (promoCodeHiddenInput) {
-      promoCodeHiddenInput.value = hasDiscount ? appliedPromoCode : "";
+      promoCodeHiddenInput.value = hasDiscount && appliedPromoCode ? appliedPromoCode.code : "";
     }
 
     if (priceEstimateBreakdown) {
@@ -1575,6 +1648,7 @@
   initPricing();
   initAboutBaker();
   fetchRequestAvailability();
+  fetchPromoCodes();
 
   if (!form) return;
 

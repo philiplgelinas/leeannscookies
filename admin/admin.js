@@ -7,9 +7,11 @@
   const logoutBtn = document.getElementById("logoutBtn");
   const adminPricingGrid = document.getElementById("adminPricingGrid");
   const adminShowcaseGrid = document.getElementById("adminShowcaseGrid");
+  const adminPromoCodesGrid = document.getElementById("adminPromoCodesGrid");
   const adminAboutBakerFields = document.getElementById("adminAboutBakerFields");
   const editorStatus = document.getElementById("editorStatus");
   const showcaseStatus = document.getElementById("showcaseStatus");
+  const promoCodesStatus = document.getElementById("promoCodesStatus");
   const aboutBakerStatus = document.getElementById("aboutBakerStatus");
   const adminActions = document.getElementById("adminActions");
   const revertChangesBtn = document.getElementById("revertChangesBtn");
@@ -56,6 +58,14 @@
     { id: "set-24", quantity: 24, price: 60 },
     { id: "set-48", quantity: 48, price: 108 },
     { id: "set-96", quantity: 96, price: 192 }
+  ];
+
+  const defaultPromoCodes = [
+    {
+      id: "promo-share15",
+      code: "SHARE15",
+      discountPercent: 15
+    }
   ];
 
   const defaultAboutBakerParagraphs = [
@@ -208,6 +218,9 @@
 
   let originalPricing = [];
   let draftPricing = [];
+
+  let originalPromoCodes = [];
+  let draftPromoCodes = [];
 
   let originalShowcase = [];
   let draftShowcase = [];
@@ -657,6 +670,252 @@
     return normalized.length ? normalized : clonePricing(defaultPricing);
   }
 
+  function clonePromoCodes(promoCodes) {
+    return promoCodes.map(promoCode => ({ ...promoCode }));
+  }
+
+  function normalizePromoCodeValue(value) {
+    return normalizeString(value).replace(/\s+/g, "").toUpperCase();
+  }
+
+  function normalizeDiscountPercent(value) {
+    const discountPercent = Number.parseInt(value, 10);
+
+    return Number.isInteger(discountPercent) && discountPercent > 0 && discountPercent <= 100
+      ? discountPercent
+      : null;
+  }
+
+  function normalizePromoCodesData(data) {
+    const hasSavedPromoCodes = data && Array.isArray(data.promoCodes);
+    const promoCodes = hasSavedPromoCodes ? data.promoCodes : defaultPromoCodes;
+    const promoCodeMap = new Map();
+
+    promoCodes.forEach(promoCode => {
+      const code = normalizePromoCodeValue(promoCode.code);
+      const discountPercent = normalizeDiscountPercent(promoCode.discountPercent);
+
+      if (!code || !Number.isInteger(discountPercent)) {
+        return;
+      }
+
+      promoCodeMap.set(code, {
+        id: normalizeString(promoCode.id) || `promo-${code.toLowerCase()}`,
+        code,
+        discountPercent
+      });
+    });
+
+    return Array.from(promoCodeMap.values());
+  }
+
+  function promoCodesToComparableString(promoCodes) {
+    return JSON.stringify(
+      promoCodes
+        .map(promoCode => ({
+          id: promoCode.id,
+          code: normalizePromoCodeValue(promoCode.code),
+          discountPercent: Number.parseInt(promoCode.discountPercent, 10)
+        }))
+        .sort((a, b) => a.code.localeCompare(b.code))
+    );
+  }
+
+  function validateDraftPromoCodes() {
+    const invalidPromoCode = draftPromoCodes.find(promoCode => {
+      const code = normalizePromoCodeValue(promoCode.code);
+      const discountPercent = normalizeDiscountPercent(promoCode.discountPercent);
+
+      return !code || !Number.isInteger(discountPercent);
+    });
+
+    if (invalidPromoCode) {
+      return "Each promo code must have a code and a discount percent from 1 to 100.";
+    }
+
+    const codes = draftPromoCodes.map(promoCode => normalizePromoCodeValue(promoCode.code));
+    const duplicateCode = codes.find((code, index) => code && codes.indexOf(code) !== index);
+
+    if (duplicateCode) {
+      return "Promo codes must be unique.";
+    }
+
+    return "";
+  }
+
+  function markInvalidPromoCodeInputs() {
+    const promoCodeItems = adminPromoCodesGrid?.querySelectorAll(".admin-promo-code-item") || [];
+    const codes = draftPromoCodes.map(promoCode => normalizePromoCodeValue(promoCode.code));
+
+    promoCodeItems.forEach(item => {
+      const id = item.getAttribute("data-promo-code-id");
+      const promoCode = draftPromoCodes.find(currentPromoCode => currentPromoCode.id === id);
+
+      const codeInput = item.querySelector("[data-promo-code-field='code']");
+      const discountInput = item.querySelector("[data-promo-code-field='discountPercent']");
+
+      const code = normalizePromoCodeValue(promoCode?.code);
+      const discountPercent = normalizeDiscountPercent(promoCode?.discountPercent);
+      const isDuplicate = code && codes.filter(currentCode => currentCode === code).length > 1;
+
+      codeInput?.classList.toggle("is-invalid", !code || isDuplicate);
+      discountInput?.classList.toggle("is-invalid", !Number.isInteger(discountPercent));
+    });
+  }
+
+  function updatePromoCodeValue(id, field, value) {
+    draftPromoCodes = draftPromoCodes.map(promoCode => {
+      if (promoCode.id !== id) {
+        return promoCode;
+      }
+
+      return {
+        ...promoCode,
+        [field]: field === "code" ? normalizePromoCodeValue(value) : value
+      };
+    });
+
+    renderPromoCodesEditor();
+    updateActionBar();
+    setStatus(promoCodesStatus, "");
+  }
+
+  function deletePromoCode(id) {
+    if (!confirmDestructiveAction("Are you sure you want to delete this promo code?")) {
+      return;
+    }
+
+    draftPromoCodes = draftPromoCodes.filter(promoCode => promoCode.id !== id);
+
+    renderPromoCodesEditor();
+    updateActionBar();
+    setStatus(promoCodesStatus, "");
+  }
+
+  function getNextPromoCodeDefaults() {
+    let index = draftPromoCodes.length + 1;
+    let code = `PROMO${index}`;
+
+    while (draftPromoCodes.some(promoCode => normalizePromoCodeValue(promoCode.code) === code)) {
+      index += 1;
+      code = `PROMO${index}`;
+    }
+
+    return {
+      code,
+      discountPercent: 10
+    };
+  }
+
+  function addPromoCode() {
+    const defaults = getNextPromoCodeDefaults();
+
+    draftPromoCodes.push({
+      id: crypto.randomUUID(),
+      code: defaults.code,
+      discountPercent: defaults.discountPercent
+    });
+
+    renderPromoCodesEditor();
+    updateActionBar();
+    setStatus(promoCodesStatus, "");
+  }
+
+  function createPromoCodeCard(promoCode) {
+    const item = document.createElement("div");
+    item.className = "admin-promo-code-item";
+    item.setAttribute("data-promo-code-id", promoCode.id);
+
+    const codeField = document.createElement("div");
+    codeField.className = "admin-promo-code-field";
+
+    const codeLabel = document.createElement("label");
+    codeLabel.className = "admin-promo-code-label";
+    codeLabel.setAttribute("for", `promo-code-${promoCode.id}`);
+    codeLabel.textContent = "Code";
+
+    const codeInput = document.createElement("input");
+    codeInput.className = "admin-promo-code-input code-input";
+    codeInput.id = `promo-code-${promoCode.id}`;
+    codeInput.type = "text";
+    codeInput.value = promoCode.code || "";
+    codeInput.placeholder = "SHARE15";
+    codeInput.setAttribute("data-promo-code-field", "code");
+    codeInput.addEventListener("input", () => updatePromoCodeValue(promoCode.id, "code", codeInput.value));
+
+    codeField.append(codeLabel, codeInput);
+
+    const discountField = document.createElement("div");
+    discountField.className = "admin-promo-code-field";
+
+    const discountLabel = document.createElement("label");
+    discountLabel.className = "admin-promo-code-label";
+    discountLabel.setAttribute("for", `promo-discount-${promoCode.id}`);
+    discountLabel.textContent = "Discount";
+
+    const discountWrap = document.createElement("div");
+    discountWrap.className = "admin-promo-discount-wrap";
+
+    const discountInput = document.createElement("input");
+    discountInput.className = "admin-promo-code-input";
+    discountInput.id = `promo-discount-${promoCode.id}`;
+    discountInput.type = "number";
+    discountInput.min = "1";
+    discountInput.max = "100";
+    discountInput.step = "1";
+    discountInput.value = promoCode.discountPercent || "";
+    discountInput.setAttribute("data-promo-code-field", "discountPercent");
+    discountInput.addEventListener("input", () => updatePromoCodeValue(promoCode.id, "discountPercent", discountInput.value));
+
+    discountWrap.appendChild(discountInput);
+    discountField.append(discountLabel, discountWrap);
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "admin-delete-promo-code-btn";
+    deleteBtn.setAttribute("aria-label", `Delete promo code ${promoCode.code || ""}`);
+    deleteBtn.addEventListener("click", () => deletePromoCode(promoCode.id));
+
+    item.append(codeField, discountField, deleteBtn);
+
+    return item;
+  }
+
+  function createPromoCodeAddButton() {
+    const wrap = document.createElement("div");
+    wrap.className = "admin-add-promo-code-wrap";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "admin-add-promo-code-btn";
+    button.innerHTML = `<i class="bi bi-plus-lg" aria-hidden="true"></i> Add Promo Code`;
+    button.addEventListener("click", addPromoCode);
+
+    wrap.appendChild(button);
+
+    return wrap;
+  }
+
+  function renderPromoCodesEditor() {
+    if (!adminPromoCodesGrid) return;
+
+    adminPromoCodesGrid.innerHTML = "";
+
+    if (!draftPromoCodes.length) {
+      const empty = document.createElement("div");
+      empty.className = "admin-request-empty";
+      empty.textContent = "No promo codes are currently active.";
+      adminPromoCodesGrid.appendChild(empty);
+    }
+
+    draftPromoCodes.forEach(promoCode => {
+      adminPromoCodesGrid.appendChild(createPromoCodeCard(promoCode));
+    });
+
+    adminPromoCodesGrid.appendChild(createPromoCodeAddButton());
+    markInvalidPromoCodeInputs();
+  }
+
   function normalizeAboutBakerParagraphs(paragraphs) {
     if (!Array.isArray(paragraphs)) {
       return [];
@@ -856,11 +1115,12 @@
 
   function hasUnsavedChanges() {
     const pricingChanged = pricingToComparableString(originalPricing) !== pricingToComparableString(draftPricing);
+    const promoCodesChanged = promoCodesToComparableString(originalPromoCodes) !== promoCodesToComparableString(draftPromoCodes);
     const showcaseChanged = showcaseToComparableString(originalShowcase) !== showcaseToComparableString(draftShowcase);
     const featuredShowcaseChanged = originalFeaturedShowcaseId !== draftFeaturedShowcaseId;
     const aboutBakerChanged = aboutBakerToComparableString(originalAboutBakerParagraphs) !== aboutBakerToComparableString(draftAboutBakerParagraphs);
 
-    return pricingChanged || showcaseChanged || featuredShowcaseChanged || aboutBakerChanged || hasPendingShowcaseImages();
+    return pricingChanged || promoCodesChanged || showcaseChanged || featuredShowcaseChanged || aboutBakerChanged || hasPendingShowcaseImages();
   }
 
   function updateActionBar() {
@@ -2761,6 +3021,17 @@
     return clonePricing(defaultPricing);
   }
 
+  async function loadPromoCodes() {
+    try {
+      const data = await fetchJson("/.netlify/functions/get-promo-codes");
+      return normalizePromoCodesData(data);
+    } catch (err) {
+      console.warn("Could not load promo codes from function.", err);
+    }
+
+    return clonePromoCodes(defaultPromoCodes);
+  }
+
   async function loadShowcase() {
     try {
       const data = await fetchJson("/.netlify/functions/get-showcase");
@@ -2820,16 +3091,21 @@
     showEditorView(username);
     setStatus(editorStatus, "Loading pricing...");
     setStatus(showcaseStatus, "Loading showcase...");
+    setStatus(promoCodesStatus, "Loading promo codes...");
     setStatus(aboutBakerStatus, "Loading About the Baker...");
 
-    const [pricing, showcaseData, aboutBakerParagraphs] = await Promise.all([
+    const [pricing, promoCodes, showcaseData, aboutBakerParagraphs] = await Promise.all([
       loadPricing(),
+      loadPromoCodes(),
       loadShowcase(),
       loadAboutBaker()
     ]);
 
     originalPricing = clonePricing(pricing);
     draftPricing = clonePricing(pricing);
+
+    originalPromoCodes = clonePromoCodes(promoCodes);
+    draftPromoCodes = clonePromoCodes(promoCodes);
 
     originalShowcase = cloneShowcase(showcaseData.showcase);
     draftShowcase = cloneShowcase(showcaseData.showcase);
@@ -2842,11 +3118,13 @@
 
     renderPricingEditor();
     renderShowcaseEditor();
+    renderPromoCodesEditor();
     renderAboutBakerEditor();
     updateActionBar();
 
     setStatus(editorStatus, "");
     setStatus(showcaseStatus, "");
+    setStatus(promoCodesStatus, "");
     setStatus(aboutBakerStatus, "");
 
     await refreshCookieRequests();
@@ -2918,6 +3196,8 @@
 
     originalPricing = [];
     draftPricing = [];
+    originalPromoCodes = [];
+    draftPromoCodes = [];
     originalShowcase = [];
     draftShowcase = [];
     originalFeaturedShowcaseId = "";
@@ -2942,6 +3222,7 @@
     });
 
     draftPricing = clonePricing(originalPricing);
+    draftPromoCodes = clonePromoCodes(originalPromoCodes);
     draftShowcase = cloneShowcase(originalShowcase);
     draftFeaturedShowcaseId = originalFeaturedShowcaseId;
     pendingShowcaseImages = {};
@@ -2949,11 +3230,13 @@
 
     renderPricingEditor();
     renderShowcaseEditor();
+    renderPromoCodesEditor();
     renderAboutBakerEditor();
     updateActionBar();
 
     setStatus(editorStatus, "Changes reverted.", "success");
     setStatus(showcaseStatus, "Changes reverted.", "success");
+    setStatus(promoCodesStatus, "Changes reverted.", "success");
     setStatus(aboutBakerStatus, "Changes reverted.", "success");
   });
 
@@ -3071,12 +3354,20 @@
   saveChangesBtn?.addEventListener("click", async () => {
     markInvalidInputs();
     markInvalidShowcaseInputs();
+    markInvalidPromoCodeInputs();
     markInvalidAboutBakerInputs();
 
     const pricingValidationMessage = validateDraftPricing();
 
     if (pricingValidationMessage) {
       setStatus(editorStatus, pricingValidationMessage, "error");
+      return;
+    }
+
+    const promoCodesValidationMessage = validateDraftPromoCodes();
+
+    if (promoCodesValidationMessage) {
+      setStatus(promoCodesStatus, promoCodesValidationMessage, "error");
       return;
     }
 
@@ -3100,6 +3391,12 @@
       price: Number.parseInt(item.price, 10)
     }));
 
+    const promoCodesToSave = draftPromoCodes.map(promoCode => ({
+      id: promoCode.id,
+      code: normalizePromoCodeValue(promoCode.code),
+      discountPercent: Number.parseInt(promoCode.discountPercent, 10)
+    }));
+
     const aboutBakerToSave = draftAboutBakerParagraphs.map(paragraph => normalizeString(paragraph));
 
     try {
@@ -3108,11 +3405,12 @@
 
       setStatus(editorStatus, "Saving pricing...");
       setStatus(showcaseStatus, "Uploading images and saving showcase...");
+      setStatus(promoCodesStatus, "Saving promo codes...");
       setStatus(aboutBakerStatus, "Saving About the Baker...");
 
       const showcaseToSave = await buildShowcaseForSave();
 
-      const [pricingData, showcaseData, aboutBakerData] = await Promise.all([
+      const [pricingData, promoCodesData, showcaseData, aboutBakerData] = await Promise.all([
         fetchJson("/.netlify/functions/save-pricing", {
           method: "POST",
           headers: {
@@ -3120,6 +3418,15 @@
           },
           body: JSON.stringify({
             pricing: pricingToSave
+          })
+        }),
+        fetchJson("/.netlify/functions/save-promo-codes", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            promoCodes: promoCodesToSave
           })
         }),
         fetchJson("/.netlify/functions/save-showcase", {
@@ -3144,6 +3451,7 @@
       ]);
 
       const savedPricing = normalizePricingData(pricingData);
+      const savedPromoCodes = normalizePromoCodesData(promoCodesData);
       const savedShowcaseData = normalizeShowcaseData(showcaseData);
       const savedAboutBakerParagraphs = normalizeAboutBakerData(aboutBakerData);
 
@@ -3151,6 +3459,9 @@
 
       originalPricing = clonePricing(savedPricing);
       draftPricing = clonePricing(savedPricing);
+
+      originalPromoCodes = clonePromoCodes(savedPromoCodes);
+      draftPromoCodes = clonePromoCodes(savedPromoCodes);
 
       originalShowcase = cloneShowcase(savedShowcaseData.showcase);
       draftShowcase = cloneShowcase(savedShowcaseData.showcase);
@@ -3162,14 +3473,17 @@
 
       renderPricingEditor();
       renderShowcaseEditor();
+      renderPromoCodesEditor();
       renderAboutBakerEditor();
       updateActionBar();
 
       setStatus(editorStatus, "Pricing saved.", "success");
       setStatus(showcaseStatus, "Showcase saved. The live site will now use these cards.", "success");
+      setStatus(promoCodesStatus, "Promo codes saved.", "success");
       setStatus(aboutBakerStatus, "About the Baker saved.", "success");
     } catch (err) {
       setStatus(showcaseStatus, err.message || "Could not save changes.", "error");
+      setStatus(promoCodesStatus, err.message || "Could not save changes.", "error");
       setStatus(aboutBakerStatus, err.message || "Could not save changes.", "error");
     } finally {
       if (saveChangesBtn) saveChangesBtn.disabled = false;
