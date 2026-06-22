@@ -775,7 +775,7 @@
       };
     });
 
-    renderPromoCodesEditor();
+    markInvalidPromoCodeInputs();
     updateActionBar();
     setStatus(promoCodesStatus, "");
   }
@@ -842,6 +842,10 @@
     codeInput.placeholder = "SHARE15";
     codeInput.setAttribute("data-promo-code-field", "code");
     codeInput.addEventListener("input", () => updatePromoCodeValue(promoCode.id, "code", codeInput.value));
+
+    codeInput.addEventListener("blur", () => {
+      codeInput.value = normalizePromoCodeValue(codeInput.value);
+    });
 
     codeField.append(codeLabel, codeInput);
 
