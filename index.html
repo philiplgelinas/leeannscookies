@@ -267,6 +267,11 @@
                   <label class="form-label" for="eventDate">Event Date</label>
                   <input class="form-control form-control-lg" id="eventDate" name="eventDate" type="date" required />
                   <div class="invalid-feedback">Please select your event date.</div>
+
+                  <div class="date-availability-message mt-2" id="dateAvailabilityMessage" hidden>
+                    <div class="date-availability-label">Date unavailable</div>
+                    <div class="date-availability-value" id="dateAvailabilityMessageText"></div>
+                  </div>
                 </div>
 
                 <div class="col-12 col-md-6">

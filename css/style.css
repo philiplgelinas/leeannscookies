@@ -468,6 +468,29 @@ body.lightbox-open{
   font-size: .82rem;
 }
 
+/* Request form date availability */
+.date-availability-message{
+  padding: 12px 14px;
+  border: 1px solid rgba(220,53,69,0.18);
+  border-radius: 16px;
+  background: rgba(220,53,69,0.08);
+}
+
+.date-availability-label{
+  color: #b02a37;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.date-availability-value{
+  margin-top: 2px;
+  color: #842029;
+  font-size: .92rem;
+  line-height: 1.35;
+}
+
 /* Request form attachment preview */
 .attachment-list{
   display: flex;

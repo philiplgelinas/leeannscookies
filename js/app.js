@@ -17,6 +17,20 @@
 
   const analyticsVisitorStorageKey = "leeanns_analytics_visitor_id";
   const analyticsSessionStorageKey = "leeanns_analytics_session_id";
+
+  const defaultRequestAvailability = {
+    noticePeriodDays: 0,
+    weeklyCapacityCookies: 0,
+    vacationDays: [],
+    weeklyScheduledCookies: {}
+  };
+
+  let requestAvailability = {
+    ...defaultRequestAvailability,
+    vacationDays: [],
+    weeklyScheduledCookies: {}
+  };
+
   let requestFormStartTracked = false;
 
   function createAnalyticsId(prefix) {
@@ -728,6 +742,164 @@
     });
   }
 
+  function normalizeVacationDays(vacationDays) {
+    if (!Array.isArray(vacationDays)) {
+      return [];
+    }
+
+    return [...new Set(
+      vacationDays
+        .map(day => normalizeString(day))
+        .filter(day => /^\d{4}-\d{2}-\d{2}$/.test(day))
+    )].sort();
+  }
+
+  function normalizeWeeklyScheduledCookies(weeklyScheduledCookies) {
+    if (!weeklyScheduledCookies || typeof weeklyScheduledCookies !== "object" || Array.isArray(weeklyScheduledCookies)) {
+      return {};
+    }
+
+    return Object.entries(weeklyScheduledCookies).reduce((totals, [weekStartKey, value]) => {
+      const quantity = Number.parseInt(value, 10);
+
+      if (/^\d{4}-\d{2}-\d{2}$/.test(weekStartKey) && Number.isInteger(quantity) && quantity > 0) {
+        totals[weekStartKey] = quantity;
+      }
+
+      return totals;
+    }, {});
+  }
+
+  function normalizeRequestAvailabilityData(data) {
+    const schedule = data?.schedule || {};
+
+    return {
+      noticePeriodDays: Math.max(0, Number.parseInt(schedule.noticePeriodDays, 10) || 0),
+      weeklyCapacityCookies: Math.max(0, Number.parseInt(schedule.weeklyCapacityCookies, 10) || 0),
+      vacationDays: normalizeVacationDays(schedule.vacationDays),
+      weeklyScheduledCookies: normalizeWeeklyScheduledCookies(data?.weeklyScheduledCookies)
+    };
+  }
+
+  function getLocalDateFromDateValue(dateValue) {
+    const parts = normalizeString(dateValue).split("-").map(Number);
+
+    if (parts.length !== 3 || parts.some(part => !Number.isInteger(part))) {
+      return null;
+    }
+
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+
+  function getDateValueFromDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  }
+
+  function getStartOfWeekKey(dateValue) {
+    const date = getLocalDateFromDateValue(dateValue);
+
+    if (!date) {
+      return "";
+    }
+
+    date.setDate(date.getDate() - date.getDay());
+
+    return getDateValueFromDate(date);
+  }
+
+  function getDaysFromToday(dateValue) {
+    const selectedDate = getLocalDateFromDateValue(dateValue);
+
+    if (!selectedDate) {
+      return null;
+    }
+
+    const today = new Date();
+
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+
+    return Math.round((selectedDate.getTime() - today.getTime()) / 86400000);
+  }
+
+  function getDateAvailabilityError() {
+    const selectedEventDate = normalizeString(eventDateInput?.value);
+    const selectedQuantity = Number.parseInt(quantityInput?.value, 10);
+    const vacationDays = new Set(requestAvailability.vacationDays);
+    const noticePeriodDays = Number.parseInt(requestAvailability.noticePeriodDays, 10) || 0;
+    const weeklyCapacityCookies = Number.parseInt(requestAvailability.weeklyCapacityCookies, 10) || 0;
+
+    if (!selectedEventDate) {
+      return "";
+    }
+
+    if (vacationDays.has(selectedEventDate)) {
+      return "The selected event date is not currently available.";
+    }
+
+    const daysFromToday = getDaysFromToday(selectedEventDate);
+
+    if (noticePeriodDays > 0 && daysFromToday !== null && daysFromToday <= noticePeriodDays) {
+      return `The selected event date cannot be within ${noticePeriodDays} days of today.`;
+    }
+
+    if (selectedEventDate && Number.isInteger(selectedQuantity) && selectedQuantity > 0 && weeklyCapacityCookies > 0) {
+      const weekStartKey = getStartOfWeekKey(selectedEventDate);
+      const scheduledCookies = Number.parseInt(requestAvailability.weeklyScheduledCookies[weekStartKey], 10) || 0;
+
+      if (scheduledCookies + selectedQuantity > weeklyCapacityCookies) {
+        return "The Estimated Quantity selected exceeds our baker's weekly capacity for the week of the selected Event Date. Please select a new Event Date or lower your Estimated Quantity.";
+      }
+    }
+
+    return "";
+  }
+
+  function updateDateAvailabilityValidation() {
+    if (!eventDateInput) {
+      return true;
+    }
+
+    const errorMessage = getDateAvailabilityError();
+
+    eventDateInput.setCustomValidity(errorMessage);
+
+    if (dateAvailabilityMessage) {
+      dateAvailabilityMessage.hidden = !errorMessage;
+    }
+
+    if (dateAvailabilityMessageText) {
+      dateAvailabilityMessageText.textContent = errorMessage;
+    }
+
+    return !errorMessage;
+  }
+
+  async function fetchRequestAvailability() {
+    try {
+      const response = await fetch("/.netlify/functions/get-request-availability", {
+        headers: {
+          Accept: "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json();
+
+      requestAvailability = normalizeRequestAvailabilityData(data);
+      updateDateAvailabilityValidation();
+    } catch (err) {
+      console.warn("Could not load request availability.", err);
+    }
+  }
+
   function calculateEstimatedPrice(quantity, pricing) {
     const sortedPricing = getSortedPricing(pricing);
 
@@ -972,6 +1144,9 @@
   const statusEl = document.getElementById("formStatus");
   const submitBtn = document.getElementById("submitBtn");
   const quantityInput = document.getElementById("quantity");
+  const eventDateInput = document.getElementById("eventDate");
+  const dateAvailabilityMessage = document.getElementById("dateAvailabilityMessage");
+  const dateAvailabilityMessageText = document.getElementById("dateAvailabilityMessageText");
   const phoneInput = document.getElementById("phone");
   const priceEstimate = document.getElementById("priceEstimate");
   const priceEstimateValue = document.getElementById("priceEstimateValue");
@@ -1225,7 +1400,13 @@
 
   form?.addEventListener("focusin", trackRequestFormStart);
 
-  quantityInput?.addEventListener("input", updatePriceEstimate);
+  quantityInput?.addEventListener("input", () => {
+    updatePriceEstimate();
+    updateDateAvailabilityValidation();
+  });
+
+  eventDateInput?.addEventListener("input", updateDateAvailabilityValidation);
+  eventDateInput?.addEventListener("change", updateDateAvailabilityValidation);
 
   phoneInput?.addEventListener("input", () => {
     phoneInput.value = formatPhoneNumber(phoneInput.value);
@@ -1241,6 +1422,7 @@
   initShowcase();
   initPricing();
   initAboutBaker();
+  fetchRequestAvailability();
 
   if (!form) return;
 
@@ -1254,6 +1436,7 @@
     form.dataset.submitting = "true";
     setStatus("");
     updatePriceEstimate();
+    updateDateAvailabilityValidation();
 
     validateImageAttachments();
     renderAttachmentList();
