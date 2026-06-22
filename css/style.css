@@ -468,6 +468,92 @@ body.lightbox-open{
   font-size: .82rem;
 }
 
+.price-estimate-breakdown{
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+
+.price-estimate-breakdown[hidden]{
+  display: none !important;
+}
+
+.price-estimate-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted-dark);
+  font-size: .9rem;
+}
+
+.price-estimate-row-discount{
+  color: #198754;
+  font-weight: 700;
+}
+
+.promo-code-field{
+  position: relative;
+}
+
+.promo-code-field .form-control{
+  padding-right: 96px;
+  text-transform: uppercase;
+}
+
+.promo-code-badge{
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(25,135,84,0.12);
+  color: #146c43;
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.promo-code-badge[hidden]{
+  display: none !important;
+}
+
+.promo-code-status{
+  min-height: 22px;
+  margin-top: 6px;
+  color: var(--muted-dark);
+  font-size: .88rem;
+}
+
+.promo-code-status.is-success{
+  color: #146c43;
+}
+
+.promo-code-status.is-error{
+  color: #b02a37;
+}
+
+@media (max-width: 575.98px){
+  .promo-code-field .form-control{
+    padding-right: 82px;
+  }
+
+  .promo-code-badge{
+    right: 10px;
+    padding: 5px 8px;
+    font-size: .7rem;
+  }
+}
+
 /* Request form date availability */
 .date-availability-message{
   padding: 12px 14px;

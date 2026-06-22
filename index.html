@@ -281,11 +281,51 @@
 
                   <div class="price-estimate mt-2" id="priceEstimate" hidden>
                     <div class="price-estimate-label">Estimated price</div>
+
+                    <div class="price-estimate-breakdown" id="priceEstimateBreakdown" hidden>
+                      <div class="price-estimate-row">
+                        <span>Subtotal</span>
+                        <span id="priceEstimateSubtotal">$0.00</span>
+                      </div>
+
+                      <div class="price-estimate-row price-estimate-row-discount">
+                        <span>Promo discount</span>
+                        <span id="priceEstimateDiscount">-$0.00</span>
+                      </div>
+                    </div>
+
                     <div class="price-estimate-value" id="priceEstimateValue">$0.00</div>
                     <div class="price-estimate-note">Final pricing may vary based on design details.</div>
                   </div>
 
                   <input type="hidden" id="estimatedPrice" name="estimatedPrice" value="" />
+                  <input type="hidden" id="originalEstimatedPrice" name="originalEstimatedPrice" value="" />
+                  <input type="hidden" id="discountAmount" name="discountAmount" value="" />
+                  <input type="hidden" id="promoCode" name="promoCode" value="" />
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="promoCodeInput">Promo Code <span class="text-secondary">(optional)</span></label>
+
+                  <div class="promo-code-field">
+                    <input
+                      class="form-control form-control-lg"
+                      id="promoCodeInput"
+                      type="text"
+                      inputmode="text"
+                      autocomplete="off"
+                      autocapitalize="characters"
+                      spellcheck="false"
+                      maxlength="20"
+                      placeholder="Enter promo code"
+                    />
+
+                    <span class="promo-code-badge" id="promoCodeBadge" hidden>
+                      15% off
+                    </span>
+                  </div>
+
+                  <div class="promo-code-status" id="promoCodeStatus" role="status" aria-live="polite"></div>
                 </div>
 
                 <div class="col-12">

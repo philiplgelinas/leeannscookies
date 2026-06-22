@@ -25,6 +25,12 @@ function normalizeString(value) {
   return String(value || "").trim();
 }
 
+function normalizePromoCode(value) {
+  const promoCode = normalizeString(value).replace(/\s+/g, "").toUpperCase();
+
+  return promoCode === "SHARE15" ? promoCode : "";
+}
+
 function normalizeQuantity(value) {
   const quantity = Number.parseInt(value, 10);
 
@@ -85,6 +91,39 @@ function formatEmailValue(value) {
   return normalizedValue || "(not provided)";
 }
 
+function buildPromoEmailTextLines(request) {
+  if (!request.promoCode) {
+    return [];
+  }
+
+  return [
+    `Original Estimated Price: ${formatEmailValue(request.originalEstimatedPrice)}`,
+    `Promo Code: ${formatEmailValue(request.promoCode)}`,
+    `Discount: ${formatEmailValue(request.discountAmount)}`
+  ];
+}
+
+function buildPromoEmailHtmlRows(request) {
+  if (!request.promoCode) {
+    return "";
+  }
+
+  return `
+        <tr>
+          <td style="padding: 6px 12px 6px 0; font-weight: bold; vertical-align: top;">Original Estimated Price:</td>
+          <td style="padding: 6px 0;">${escapeHtml(formatEmailValue(request.originalEstimatedPrice))}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 12px 6px 0; font-weight: bold; vertical-align: top;">Promo Code:</td>
+          <td style="padding: 6px 0;">${escapeHtml(formatEmailValue(request.promoCode))}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 12px 6px 0; font-weight: bold; vertical-align: top;">Discount:</td>
+          <td style="padding: 6px 0;">${escapeHtml(formatEmailValue(request.discountAmount))}</td>
+        </tr>
+  `;
+}
+
 function buildImageLinksText(images) {
   if (!Array.isArray(images) || !images.length) {
     return "(none)";
@@ -127,6 +166,7 @@ function buildCookieRequestEmailText(request) {
     `Event Date: ${formatEmailValue(request.eventDate)}`,
     `Quantity: ${formatEmailValue(request.quantity)}`,
     `Estimated Price: ${formatEmailValue(request.estimatedPrice)}`,
+    ...buildPromoEmailTextLines(request),
     `Theme: ${formatEmailValue(request.theme)}`,
     `Inspiration Link: ${formatEmailValue(request.inspo)}`,
     "",
@@ -171,6 +211,7 @@ function buildCookieRequestEmailHtml(request) {
           <td style="padding: 6px 12px 6px 0; font-weight: bold; vertical-align: top;">Estimated Price:</td>
           <td style="padding: 6px 0;">${escapeHtml(formatEmailValue(request.estimatedPrice))}</td>
         </tr>
+        ${buildPromoEmailHtmlRows(request)}
         <tr>
           <td style="padding: 6px 12px 6px 0; font-weight: bold; vertical-align: top;">Theme:</td>
           <td style="padding: 6px 0;">${escapeHtml(formatEmailValue(request.theme))}</td>
@@ -238,6 +279,9 @@ function normalizeCookieRequest(data) {
   const eventDate = normalizeString(data.eventDate);
   const quantity = normalizeQuantity(data.quantity);
   const estimatedPrice = normalizeString(data.estimatedPrice);
+  const originalEstimatedPrice = normalizeString(data.originalEstimatedPrice) || estimatedPrice;
+  const promoCode = normalizePromoCode(data.promoCode);
+  const discountAmount = promoCode ? normalizeString(data.discountAmount) : "";
   const theme = normalizeString(data.theme);
   const inspo = normalizeString(data.inspo);
   const details = normalizeString(data.details);
@@ -297,6 +341,9 @@ function normalizeCookieRequest(data) {
       eventDate,
       quantity,
       estimatedPrice,
+      originalEstimatedPrice,
+      discountAmount,
+      promoCode,
       theme,
       inspo,
       details,

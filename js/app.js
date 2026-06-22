@@ -25,12 +25,16 @@
     weeklyScheduledCookies: {}
   };
 
+  const activePromoCode = "SHARE15";
+  const activePromoDiscountRate = 0.15;
+
   let requestAvailability = {
     ...defaultRequestAvailability,
     vacationDays: [],
     weeklyScheduledCookies: {}
   };
 
+  let appliedPromoCode = "";
   let requestFormStartTracked = false;
 
   function createAnalyticsId(prefix) {
@@ -742,6 +746,76 @@
     });
   }
 
+  function normalizePromoCode(value) {
+    return normalizeString(value).replace(/\s+/g, "").toUpperCase();
+  }
+
+  function getPromoDiscountAmount(price) {
+    if (appliedPromoCode !== activePromoCode || !Number.isFinite(price) || price <= 0) {
+      return 0;
+    }
+
+    return price * activePromoDiscountRate;
+  }
+
+  function setPromoCodeStatus(message = "", type = "") {
+    if (!promoCodeStatus) {
+      return;
+    }
+
+    promoCodeStatus.textContent = message;
+    promoCodeStatus.classList.toggle("is-success", type === "success");
+    promoCodeStatus.classList.toggle("is-error", type === "error");
+  }
+
+  function updatePromoCodeBadge() {
+    if (!promoCodeBadge) {
+      return;
+    }
+
+    promoCodeBadge.hidden = appliedPromoCode !== activePromoCode;
+  }
+
+  function validatePromoCode(showMessage = false) {
+    if (!promoCodeInput) {
+      return true;
+    }
+
+    const promoCode = normalizePromoCode(promoCodeInput.value);
+
+    if (promoCodeInput.value !== promoCode) {
+      promoCodeInput.value = promoCode;
+    }
+
+    if (!promoCode) {
+      appliedPromoCode = "";
+      promoCodeInput.setCustomValidity("");
+      setPromoCodeStatus("");
+      updatePromoCodeBadge();
+      return true;
+    }
+
+    if (promoCode === activePromoCode) {
+      appliedPromoCode = activePromoCode;
+      promoCodeInput.setCustomValidity("");
+      setPromoCodeStatus("Promo applied — 15% off your estimated price.", "success");
+      updatePromoCodeBadge();
+      return true;
+    }
+
+    appliedPromoCode = "";
+    promoCodeInput.setCustomValidity("Please enter a valid promo code or leave this field blank.");
+
+    if (showMessage) {
+      setPromoCodeStatus("Promo code not recognized. Please check the code or leave this field blank.", "error");
+    } else {
+      setPromoCodeStatus("");
+    }
+
+    updatePromoCodeBadge();
+    return false;
+  }
+
   function normalizeVacationDays(vacationDays) {
     if (!Array.isArray(vacationDays)) {
       return [];
@@ -942,21 +1016,77 @@
       return;
     }
 
-    const quantity = Number.parseInt(quantityInput.value, 10);
-    const estimatedPrice = calculateEstimatedPrice(quantity, currentPricing);
+    validatePromoCode(false);
 
-    if (!Number.isFinite(estimatedPrice)) {
+    const quantity = Number.parseInt(quantityInput.value, 10);
+    const originalEstimatedPrice = calculateEstimatedPrice(quantity, currentPricing);
+
+    if (!Number.isFinite(originalEstimatedPrice)) {
       priceEstimate.hidden = true;
       priceEstimateValue.textContent = "$0.00";
       estimatedPriceInput.value = "";
+
+      if (originalEstimatedPriceInput) {
+        originalEstimatedPriceInput.value = "";
+      }
+
+      if (discountAmountInput) {
+        discountAmountInput.value = "";
+      }
+
+      if (promoCodeHiddenInput) {
+        promoCodeHiddenInput.value = "";
+      }
+
+      if (priceEstimateBreakdown) {
+        priceEstimateBreakdown.hidden = true;
+      }
+
+      if (priceEstimateSubtotal) {
+        priceEstimateSubtotal.textContent = "$0.00";
+      }
+
+      if (priceEstimateDiscount) {
+        priceEstimateDiscount.textContent = "-$0.00";
+      }
+
       return;
     }
 
-    const formattedPrice = formatEstimatedPrice(estimatedPrice);
+    const discountAmount = getPromoDiscountAmount(originalEstimatedPrice);
+    const discountedEstimatedPrice = Math.max(0, originalEstimatedPrice - discountAmount);
+    const formattedOriginalPrice = formatEstimatedPrice(originalEstimatedPrice);
+    const formattedDiscountAmount = formatEstimatedPrice(discountAmount);
+    const formattedDiscountedPrice = formatEstimatedPrice(discountedEstimatedPrice);
+    const hasDiscount = discountAmount > 0;
 
     priceEstimate.hidden = false;
-    priceEstimateValue.textContent = formattedPrice;
-    estimatedPriceInput.value = formattedPrice;
+    priceEstimateValue.textContent = formattedDiscountedPrice;
+    estimatedPriceInput.value = formattedDiscountedPrice;
+
+    if (originalEstimatedPriceInput) {
+      originalEstimatedPriceInput.value = formattedOriginalPrice;
+    }
+
+    if (discountAmountInput) {
+      discountAmountInput.value = hasDiscount ? formattedDiscountAmount : "";
+    }
+
+    if (promoCodeHiddenInput) {
+      promoCodeHiddenInput.value = hasDiscount ? appliedPromoCode : "";
+    }
+
+    if (priceEstimateBreakdown) {
+      priceEstimateBreakdown.hidden = !hasDiscount;
+    }
+
+    if (priceEstimateSubtotal) {
+      priceEstimateSubtotal.textContent = formattedOriginalPrice;
+    }
+
+    if (priceEstimateDiscount) {
+      priceEstimateDiscount.textContent = hasDiscount ? `-${formattedDiscountAmount}` : "-$0.00";
+    }
   }
 
   async function fetchPricingData() {
@@ -1148,9 +1278,18 @@
   const dateAvailabilityMessage = document.getElementById("dateAvailabilityMessage");
   const dateAvailabilityMessageText = document.getElementById("dateAvailabilityMessageText");
   const phoneInput = document.getElementById("phone");
+  const promoCodeInput = document.getElementById("promoCodeInput");
+  const promoCodeStatus = document.getElementById("promoCodeStatus");
+  const promoCodeBadge = document.getElementById("promoCodeBadge");
   const priceEstimate = document.getElementById("priceEstimate");
   const priceEstimateValue = document.getElementById("priceEstimateValue");
+  const priceEstimateBreakdown = document.getElementById("priceEstimateBreakdown");
+  const priceEstimateSubtotal = document.getElementById("priceEstimateSubtotal");
+  const priceEstimateDiscount = document.getElementById("priceEstimateDiscount");
   const estimatedPriceInput = document.getElementById("estimatedPrice");
+  const originalEstimatedPriceInput = document.getElementById("originalEstimatedPrice");
+  const discountAmountInput = document.getElementById("discountAmount");
+  const promoCodeHiddenInput = document.getElementById("promoCode");
   const orderImagesInput = document.getElementById("orderImages");
   const attachmentList = document.getElementById("attachmentList");
   const orderImagesFeedback = document.getElementById("orderImagesFeedback");
@@ -1391,6 +1530,9 @@
       eventDate: normalizeString(values.eventDate),
       quantity: normalizeString(values.quantity),
       estimatedPrice: normalizeString(values.estimatedPrice),
+      originalEstimatedPrice: normalizeString(values.originalEstimatedPrice),
+      discountAmount: normalizeString(values.discountAmount),
+      promoCode: normalizeString(values.promoCode),
       theme: normalizeString(values.theme),
       inspo: normalizeString(values.inspo),
       details: normalizeString(values.details),
@@ -1410,6 +1552,16 @@
 
   phoneInput?.addEventListener("input", () => {
     phoneInput.value = formatPhoneNumber(phoneInput.value);
+  });
+
+  promoCodeInput?.addEventListener("input", () => {
+    validatePromoCode(false);
+    updatePriceEstimate();
+  });
+
+  promoCodeInput?.addEventListener("blur", () => {
+    validatePromoCode(true);
+    updatePriceEstimate();
   });
 
   orderImagesInput?.addEventListener("change", () => {
@@ -1435,6 +1587,7 @@
 
     form.dataset.submitting = "true";
     setStatus("");
+    validatePromoCode(true);
     updatePriceEstimate();
     updateDateAvailabilityValidation();
 

@@ -1684,6 +1684,9 @@
       eventDate: normalizeString(request?.eventDate),
       quantity: Number.parseInt(request?.quantity, 10),
       estimatedPrice: normalizeString(request?.estimatedPrice),
+      originalEstimatedPrice: normalizeString(request?.originalEstimatedPrice),
+      discountAmount: normalizeString(request?.discountAmount),
+      promoCode: normalizeString(request?.promoCode),
       finalPrice: normalizeString(request?.finalPrice),
       theme: normalizeString(request?.theme),
       inspo: normalizeString(request?.inspo),
@@ -2517,7 +2520,16 @@
       createRequestDetail("Email", request.email),
       createRequestDetail("Phone", request.phone),
       createRequestDetail("Quantity", Number.isInteger(request.quantity) ? String(request.quantity) : ""),
-      createRequestDetail(getRequestPriceLabel(request), getRequestDisplayPrice(request)),
+      createRequestDetail(getRequestPriceLabel(request), getRequestDisplayPrice(request))
+    );
+
+    if (request.promoCode) {
+      details.append(
+        createRequestDetail("Promo Code", `${request.promoCode}${request.discountAmount ? ` • ${request.discountAmount} off` : ""}`)
+      );
+    }
+
+    details.append(
       createRequestDetail("Theme", request.theme),
       createRequestLinkDetail("Inspiration Link", request.inspo)
     );

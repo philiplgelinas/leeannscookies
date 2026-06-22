@@ -31,6 +31,13 @@ function normalizeImages(images) {
     .slice(0, 3);
 }
 
+function normalizeStatus(value) {
+  const status = normalizeString(value).toLowerCase();
+  const allowedStatuses = ["pending", "accepted", "completed"];
+
+  return allowedStatuses.includes(status) ? status : "pending";
+}
+
 function normalizeCookieRequest(request) {
   const id = normalizeString(request?.id);
   const createdAt = normalizeString(request?.createdAt);
@@ -40,6 +47,9 @@ function normalizeCookieRequest(request) {
   const eventDate = normalizeString(request?.eventDate);
   const quantity = normalizeQuantity(request?.quantity);
   const estimatedPrice = normalizeString(request?.estimatedPrice);
+  const originalEstimatedPrice = normalizeString(request?.originalEstimatedPrice);
+  const discountAmount = normalizeString(request?.discountAmount);
+  const promoCode = normalizeString(request?.promoCode);
   const finalPrice = normalizeString(request?.finalPrice);
   const theme = normalizeString(request?.theme);
   const inspo = normalizeString(request?.inspo);
@@ -61,6 +71,9 @@ function normalizeCookieRequest(request) {
     eventDate,
     quantity,
     estimatedPrice,
+    originalEstimatedPrice,
+    discountAmount,
+    promoCode,
     finalPrice,
     theme,
     inspo,
@@ -84,13 +97,6 @@ function normalizeCookieRequestsData(data) {
 
       return b.createdAt.localeCompare(a.createdAt);
     });
-}
-
-function normalizeStatus(value) {
-  const status = normalizeString(value).toLowerCase();
-  const allowedStatuses = ["pending", "accepted", "completed"];
-
-  return allowedStatuses.includes(status) ? status : "pending";
 }
 
 exports.handler = async (event) => {
