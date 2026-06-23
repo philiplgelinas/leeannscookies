@@ -1571,11 +1571,11 @@ body{
 }
 
 .admin-schedule-day-badge.is-order-due{
-  background: #0d6efd;
+  background: var(--admin-success);
 }
 
 .admin-schedule-day.has-order-due{
-  border-color: rgba(13,110,253,0.32);
+  border-color: rgba(25,135,84,0.34);
 }
 
 @container (max-width: 84px){
