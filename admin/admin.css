@@ -1542,21 +1542,40 @@ body{
   font-weight: 800;
 }
 
-.admin-schedule-day-badge{
+.admin-schedule-day-badges{
   position: absolute;
   left: 10px;
   right: 10px;
   bottom: 10px;
+  display: grid;
+  gap: 5px;
+  pointer-events: none;
+}
+
+.admin-schedule-day-badge{
   display: inline-flex;
   justify-content: center;
+  min-height: 22px;
   padding: 5px 8px;
   border-radius: 999px;
-  background: var(--admin-danger);
   color: #fff;
   font-size: .72rem;
   font-weight: 800;
   letter-spacing: .05em;
+  line-height: 1;
   text-transform: uppercase;
+}
+
+.admin-schedule-day-badge.is-vacation{
+  background: var(--admin-danger);
+}
+
+.admin-schedule-day-badge.is-order-due{
+  background: #0d6efd;
+}
+
+.admin-schedule-day.has-order-due{
+  border-color: rgba(13,110,253,0.32);
 }
 
 @container (max-width: 84px){
@@ -1601,10 +1620,14 @@ body{
     border-radius: 14px;
   }
 
-  .admin-schedule-day-badge{
+  .admin-schedule-day-badges{
     left: 6px;
     right: 6px;
     bottom: 6px;
+    gap: 4px;
+  }
+
+  .admin-schedule-day-badge{
     font-size: .62rem;
   }
 

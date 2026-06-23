@@ -236,6 +236,7 @@
   let draftSchedule = null;
   let scheduleLoaded = false;
   let scheduleCalendarDate = new Date();
+  let scheduleOrderDueDateKeys = new Set();
   let analyticsLoaded = false;
   let draggedPricingId = "";
   let draggedShowcaseId = "";
@@ -436,6 +437,31 @@
     return nextDate;
   }
 
+  function getScheduleOrderDueDateKeys(requests) {
+    if (!Array.isArray(requests)) {
+      return new Set();
+    }
+
+    return new Set(
+      requests
+        .filter(request => {
+          const status = normalizeString(request.status).toLowerCase();
+
+          return (status === "pending" || status === "accepted") && isValidDateKey(request.eventDate);
+        })
+        .map(request => normalizeString(request.eventDate))
+    );
+  }
+
+  function createScheduleDayBadge(text, type) {
+    const badge = document.createElement("span");
+
+    badge.className = `admin-schedule-day-badge is-${type}`;
+    badge.textContent = text;
+
+    return badge;
+  }
+
   function hasScheduleChanges() {
     return scheduleToComparableString(originalSchedule) !== scheduleToComparableString(draftSchedule);
   }
@@ -524,6 +550,7 @@
       const date = addCalendarDays(calendarStart, index);
       const dateKey = getDateKeyFromDate(date);
       const isVacationDay = vacationDays.has(dateKey);
+      const hasOrderDue = scheduleOrderDueDateKeys.has(dateKey);
 
       const dayButton = document.createElement("button");
       dayButton.type = "button";
@@ -531,13 +558,14 @@
       dayButton.classList.toggle("is-outside", date.getMonth() !== visibleMonth);
       dayButton.classList.toggle("is-today", dateKey === todayKey);
       dayButton.classList.toggle("is-vacation", isVacationDay);
+      dayButton.classList.toggle("has-order-due", hasOrderDue);
       dayButton.setAttribute("aria-pressed", isVacationDay ? "true" : "false");
       dayButton.setAttribute("aria-label", `${date.toLocaleDateString("en-US", {
         weekday: "long",
         month: "long",
         day: "numeric",
         year: "numeric"
-      })}${isVacationDay ? ", vacation day" : ""}`);
+      })}${isVacationDay ? ", vacation day" : ""}${hasOrderDue ? ", order due" : ""}`);
 
       const dayNumber = document.createElement("span");
       dayNumber.className = "admin-schedule-day-number";
@@ -545,11 +573,19 @@
 
       dayButton.appendChild(dayNumber);
 
+      const badges = document.createElement("div");
+      badges.className = "admin-schedule-day-badges";
+
       if (isVacationDay) {
-        const badge = document.createElement("span");
-        badge.className = "admin-schedule-day-badge";
-        badge.textContent = "Vacation";
-        dayButton.appendChild(badge);
+        badges.appendChild(createScheduleDayBadge("Vacation", "vacation"));
+      }
+
+      if (hasOrderDue) {
+        badges.appendChild(createScheduleDayBadge("Order Due", "order-due"));
+      }
+
+      if (badges.children.length) {
+        dayButton.appendChild(badges);
       }
 
       dayButton.addEventListener("click", () => toggleVacationDay(dateKey));
@@ -2868,6 +2904,9 @@
   }
 
   function renderCookieRequests() {
+    scheduleOrderDueDateKeys = getScheduleOrderDueDateKeys(cookieRequests);
+    renderScheduleCalendar();
+
     const pendingRequests = cookieRequests
       .filter(request => request.status === "pending")
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
