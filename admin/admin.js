@@ -33,6 +33,7 @@
   const pendingRequestsGrid = document.getElementById("pendingRequestsGrid");
   const upcomingRequestsGrid = document.getElementById("upcomingRequestsGrid");
   const pastRequestsGrid = document.getElementById("pastRequestsGrid");
+  const pendingEarned = document.getElementById("pendingEarned");
   const totalEarned = document.getElementById("totalEarned");
   const analyticsPanel = document.getElementById("analyticsPanel");
   const analyticsStatus = document.getElementById("analyticsStatus");
@@ -2126,6 +2127,20 @@
     valueEl.textContent = formatCurrency(total);
   }
 
+  function updatePendingEarned(pendingRequests, upcomingRequests) {
+    if (!pendingEarned) return;
+
+    const valueEl = pendingEarned.querySelector(".admin-total-earned-value");
+
+    if (!valueEl) return;
+
+    const total = [...pendingRequests, ...upcomingRequests].reduce((sum, request) =>
+      sum + parseEstimatedPrice(request.estimatedPrice), 0
+    );
+
+    valueEl.textContent = formatCurrency(total);
+  }
+
   function getRequestPriceLabel(request) {
     return request.status === "completed" ? "Final Price" : "Estimated Price";
   }
@@ -2881,6 +2896,7 @@
         return b.createdAt.localeCompare(a.createdAt);
       });
 
+    updatePendingEarned(pendingRequests, upcomingRequests);
     updateTotalEarned(pastRequests);
 
     renderRequestGrid(pendingRequestsGrid, pendingRequests, "No pending cookie requests yet.");
