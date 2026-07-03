@@ -83,25 +83,19 @@ function normalizeStoredRequests(data) {
   return data.requests.filter(request => request && request.id);
 }
 
-function summarizeAcceptedWeeklyCookies(requests) {
-  return requests.reduce((weeklyTotals, request) => {
+function summarizeAcceptedCookiesByDate(requests) {
+  return requests.reduce((dailyTotals, request) => {
     const status = normalizeString(request.status).toLowerCase();
     const eventDate = normalizeString(request.eventDate);
     const quantity = Number.parseInt(request.quantity, 10);
 
     if (status !== "accepted" || !isValidDateKey(eventDate) || !Number.isInteger(quantity) || quantity <= 0) {
-      return weeklyTotals;
+      return dailyTotals;
     }
 
-    const weekStartKey = getWeekStartKey(eventDate);
+    dailyTotals[eventDate] = (dailyTotals[eventDate] || 0) + quantity;
 
-    if (!weekStartKey) {
-      return weeklyTotals;
-    }
-
-    weeklyTotals[weekStartKey] = (weeklyTotals[weekStartKey] || 0) + quantity;
-
-    return weeklyTotals;
+    return dailyTotals;
   }, {});
 }
 
@@ -124,7 +118,7 @@ exports.handler = async (event) => {
 
     return jsonResponse(200, {
       schedule,
-      weeklyScheduledCookies: summarizeAcceptedWeeklyCookies(requests)
+      scheduledCookiesByDate: summarizeAcceptedCookiesByDate(requests)
     });
   } catch (err) {
     console.error("Failed to load request availability.", err);

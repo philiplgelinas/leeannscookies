@@ -22,7 +22,7 @@
     noticePeriodDays: 0,
     weeklyCapacityCookies: 0,
     vacationDays: [],
-    weeklyScheduledCookies: {}
+    scheduledCookiesByDate: {}
   };
 
   const defaultPromoCodes = [
@@ -38,7 +38,7 @@
   let requestAvailability = {
     ...defaultRequestAvailability,
     vacationDays: [],
-    weeklyScheduledCookies: {}
+    scheduledCookiesByDate: {}
   };
 
   let appliedPromoCode = null;
@@ -901,16 +901,16 @@
     )].sort();
   }
 
-  function normalizeWeeklyScheduledCookies(weeklyScheduledCookies) {
-    if (!weeklyScheduledCookies || typeof weeklyScheduledCookies !== "object" || Array.isArray(weeklyScheduledCookies)) {
+  function normalizeScheduledCookiesByDate(scheduledCookiesByDate) {
+    if (!scheduledCookiesByDate || typeof scheduledCookiesByDate !== "object" || Array.isArray(scheduledCookiesByDate)) {
       return {};
     }
 
-    return Object.entries(weeklyScheduledCookies).reduce((totals, [weekStartKey, value]) => {
+    return Object.entries(scheduledCookiesByDate).reduce((totals, [dateKey, value]) => {
       const quantity = Number.parseInt(value, 10);
 
-      if (/^\d{4}-\d{2}-\d{2}$/.test(weekStartKey) && Number.isInteger(quantity) && quantity > 0) {
-        totals[weekStartKey] = quantity;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateKey) && Number.isInteger(quantity) && quantity > 0) {
+        totals[dateKey] = quantity;
       }
 
       return totals;
@@ -924,7 +924,7 @@
       noticePeriodDays: Math.max(0, Number.parseInt(schedule.noticePeriodDays, 10) || 0),
       weeklyCapacityCookies: Math.max(0, Number.parseInt(schedule.weeklyCapacityCookies, 10) || 0),
       vacationDays: normalizeVacationDays(schedule.vacationDays),
-      weeklyScheduledCookies: normalizeWeeklyScheduledCookies(data?.weeklyScheduledCookies)
+      scheduledCookiesByDate: normalizeScheduledCookiesByDate(data?.scheduledCookiesByDate)
     };
   }
 
@@ -946,16 +946,41 @@
     return `${year}-${month}-${day}`;
   }
 
-  function getStartOfWeekKey(dateValue) {
+  function addDaysToDateValue(dateValue, dayCount) {
     const date = getLocalDateFromDateValue(dateValue);
 
     if (!date) {
       return "";
     }
 
-    date.setDate(date.getDate() - date.getDay());
+    date.setDate(date.getDate() + dayCount);
 
     return getDateValueFromDate(date);
+  }
+
+  function getScheduledCookieTotalForDateRange(startDateValue, dayCount) {
+    let total = 0;
+
+    for (let index = 0; index < dayCount; index++) {
+      const dateKey = addDaysToDateValue(startDateValue, index);
+
+      total += Number.parseInt(requestAvailability.scheduledCookiesByDate[dateKey], 10) || 0;
+    }
+
+    return total;
+  }
+
+  function wouldExceedRollingWeeklyCapacity(selectedEventDate, selectedQuantity, weeklyCapacityCookies) {
+    for (let startOffset = -6; startOffset <= 0; startOffset++) {
+      const windowStartDate = addDaysToDateValue(selectedEventDate, startOffset);
+      const scheduledCookiesInWindow = getScheduledCookieTotalForDateRange(windowStartDate, 7);
+
+      if (scheduledCookiesInWindow + selectedQuantity > weeklyCapacityCookies) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   function getDaysFromToday(dateValue) {
@@ -995,11 +1020,8 @@
     }
 
     if (selectedEventDate && Number.isInteger(selectedQuantity) && selectedQuantity > 0 && weeklyCapacityCookies > 0) {
-      const weekStartKey = getStartOfWeekKey(selectedEventDate);
-      const scheduledCookies = Number.parseInt(requestAvailability.weeklyScheduledCookies[weekStartKey], 10) || 0;
-
-      if (scheduledCookies + selectedQuantity > weeklyCapacityCookies) {
-        return "The Estimated Quantity selected exceeds our baker's weekly capacity for the week of the selected Event Date. Please select a new Event Date or lower your Estimated Quantity.";
+      if (wouldExceedRollingWeeklyCapacity(selectedEventDate, selectedQuantity, weeklyCapacityCookies)) {
+        return "The Estimated Quantity selected exceeds our baker's weekly capacity for a 7-day period around the selected Event Date. Please select a new Event Date or lower your Estimated Quantity.";
       }
     }
 
