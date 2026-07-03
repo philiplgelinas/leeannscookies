@@ -1021,7 +1021,7 @@
 
     if (selectedEventDate && Number.isInteger(selectedQuantity) && selectedQuantity > 0 && weeklyCapacityCookies > 0) {
       if (wouldExceedRollingWeeklyCapacity(selectedEventDate, selectedQuantity, weeklyCapacityCookies)) {
-        return "The Estimated Quantity selected exceeds our baker's weekly capacity for a 7-day period around the selected Event Date. Please select a new Event Date or lower your Estimated Quantity.";
+        return "The Estimated Quantity selected exceeds our baker's weekly capacity for a 7-day period around the selected Event Date. Please select a new Event Date, lower your Estimated Quantity, or contact our baker directly.";
       }
     }
 
