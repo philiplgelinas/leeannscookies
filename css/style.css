@@ -303,6 +303,32 @@ body{
   object-fit: contain;
 }
 
+.about-image-lightbox-btn{
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.about-image-lightbox-btn:focus-visible{
+  outline: 3px solid rgba(0,0,0,0.25);
+  outline-offset: 4px;
+}
+
+.about-image-lightbox-btn .about-image{
+  border-radius: inherit;
+  transition: transform .18s ease, filter .18s ease;
+}
+
+.about-image-lightbox-btn:hover .about-image{
+  transform: scale(1.015);
+  filter: brightness(.98);
+}
+
 .footer{
   background: #0b0c0f;
   color: rgba(255,255,255,0.88);

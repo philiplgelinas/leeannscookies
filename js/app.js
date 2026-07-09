@@ -1321,6 +1321,17 @@
     });
   }
 
+  function bindAboutBakerLightbox() {
+    const aboutImageBtn = document.querySelector(".about-image-lightbox-btn");
+    const aboutImage = aboutImageBtn?.querySelector(".about-image");
+
+    if (!aboutImageBtn || !aboutImage) return;
+
+    aboutImageBtn.addEventListener("click", () => {
+      openLightboxFromImage(aboutImage, "About the Baker");
+    });
+  }
+
   function closeLightbox() {
     if (!lightbox || !lightboxImg) return;
 
@@ -1353,6 +1364,7 @@
 
   lightboxClose?.addEventListener("click", closeLightbox);
   bindFeaturedSetLightbox();
+  bindAboutBakerLightbox();
 
   lightbox?.addEventListener("click", (e) => {
     if (e.target === lightbox) closeLightbox();
